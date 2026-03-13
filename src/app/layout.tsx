@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CLINIX by livconnect - Healthcare Appointment Booking",
+  title: "SehatSetu by livconnect - Healthcare Appointment Booking",
   description:
     "Quick and easy appointment booking with healthcare professionals",
   icons: {
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "CLINIX",
+    title: "SehatSetu",
   },
 };
 

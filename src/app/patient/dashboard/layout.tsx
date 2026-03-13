@@ -27,6 +27,7 @@ import {
   Shield,
   Plus,
   CalendarPlus,
+  FileImage,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -64,6 +65,18 @@ const navItems: NavItem[] = [
     href: "/patient/dashboard/documents", 
     icon: FolderOpen,
     description: "HIPAA compliant storage"
+  },
+  {
+    title: "Analyze Report",
+    href: "/patient/dashboard/analyze-report",
+    icon: FileImage,
+    description: "Analyze medical reports",
+  },
+  {
+    title: "Predict Disease", 
+    href: "/patient/dashboard/predict", 
+    icon: FolderOpen,
+    description: "AI-powered disease prediction"
   },
   { 
     title: "Appointments", 

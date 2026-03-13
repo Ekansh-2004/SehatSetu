@@ -41,7 +41,7 @@
   <g filter="url(#shadowSoft)">
     <rect x="40" y="28" rx="18" ry="18" width="1520" height="74" fill="#FFFFFF"/>
   </g>
-  <text x="76" y="74" class="text-lg">Clinix</text>
+  <text x="76" y="74" class="text-lg">SehatSetu</text>
   <text x="170" y="74" class="text-sm">Consultation</text>
 
   <!-- Room / status pills -->

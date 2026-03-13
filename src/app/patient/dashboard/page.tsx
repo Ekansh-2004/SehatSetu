@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Stethoscope,
   Shield,
+  FileImage,
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { CLINIC_TIMEZONE } from "@/lib/config/timezone";
@@ -291,8 +292,18 @@ export default function PatientDashboard() {
                 onClick={() => router.push("/patient/dashboard/documents")}
               >
                 <Upload className="h-5 w-5 text-blue-600" />
-                <span className="font-medium">Upload Document</span>
-                <span className="text-xs text-gray-500">Medical records</span>
+                <span className="font-medium">Upload Image</span>
+                <span className="text-xs text-gray-500">Predict Disease</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-auto py-4 px-6 flex flex-col items-center gap-2 border-teal-200 hover:bg-teal-50 hover:border-teal-300 text-gray-700"
+                onClick={() => router.push("/patient/dashboard/analyze-report")}
+              >
+                <FileImage className="h-5 w-5 text-teal-600" />
+                <span className="font-medium">Analyze Report</span>
+                <span className="text-xs text-gray-500">Analyze medical report</span>
               </Button>
 
               <Button

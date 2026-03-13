@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     const maxSize = isDicomFile ? 100 * 1024 * 1024 : 50 * 1024 * 1024;
     if (fileSize > maxSize) {
       return NextResponse.json(
-        { success: false, error: `File too large. Maximum size: 50MB` },
+        { success: false, error: `File too large. Maximum size: ${isDicomFile ? '100MB' : '50MB'}` },
         { status: 400 }
       );
     }
@@ -167,19 +167,32 @@ export async function POST(request: NextRequest) {
       data: { s3Key, s3Url },
     });
 
+    // Ensure AWS configuration is present
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
+      console.error('Missing AWS environment variables for S3 presigned URL generation');
+      return NextResponse.json({ success: false, error: 'Server misconfiguration: missing AWS credentials' }, { status: 500 });
+    }
+
     // Generate presigned URL for upload
-    const presignedUploadUrl = await s3.getSignedUrlPromise('putObject', {
-      Bucket: s3Bucket,
-      Key: s3Key,
-      Expires: 3600, // 1 hour
-      ContentType: mimeType,
-      Metadata: {
-        'uuid': fileMetadata.uuid,
-        'patient-id': patient.id,
-        'original-filename': fileName,
-        'hipaa-compliant': 'true',
-      },
-    });
+    let presignedUploadUrl: string;
+    try {
+      presignedUploadUrl = await s3.getSignedUrlPromise('putObject', {
+        Bucket: s3Bucket,
+        Key: s3Key,
+        Expires: 3600, // 1 hour
+        ContentType: mimeType,
+        Metadata: {
+          'uuid': fileMetadata.uuid,
+          'patient-id': patient.id,
+          'original-filename': fileName,
+          'hipaa-compliant': 'true',
+        },
+      });
+    } catch (err) {
+      console.error('S3 getSignedUrlPromise error:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ success: false, error: `Failed to generate upload URL: ${message}` }, { status: 500 });
+    }
 
     // HIPAA Compliance: Log document upload initiation
     console.log(`[HIPAA] Document upload initiated - Patient: ${patient.id}, UUID: ${fileMetadata.uuid}, File: ${fileName}`);

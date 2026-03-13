@@ -78,6 +78,17 @@ export default function PatientMeetingRoom({
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const isIgnorableDisconnectError = useCallback((error: unknown) => {
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : "";
+
+    return message.toLowerCase().includes("client initiated disconnect");
+  }, []);
+
   // Simplified participant filtering - only exclude agent participants
   const visibleParticipants = useMemo(() => {
     return participants.filter(
@@ -116,14 +127,17 @@ export default function PatientMeetingRoom({
 
   // Connect to room
   useEffect(() => {
+    let isCleaningUp = false;
+
     const connectToRoom = async () => {
       try {
         console.log("🔗 Connecting to LiveKit room:", room.name);
-        try{
         await room.connect(wsUrl, token);
-        }catch(error){
-          console.error("❌ Failed to connect to room:", error);
+
+        if (isCleaningUp) {
+          return;
         }
+
         setLocalParticipant(room.localParticipant);
 
         // Enable camera and microphone by default
@@ -155,6 +169,11 @@ export default function PatientMeetingRoom({
         updateParticipants();
         console.log("✅ Connected to LiveKit room:", room.name);
       } catch (error) {
+        if (isIgnorableDisconnectError(error)) {
+          console.log("LiveKit disconnected by client action");
+          return;
+        }
+
         console.error("❌ Failed to connect to room:", error);
       }
     };
@@ -304,7 +323,14 @@ export default function PatientMeetingRoom({
     );
 
     return () => {
-      room.disconnect();
+      isCleaningUp = true;
+      try {
+        room.disconnect();
+      } catch (error) {
+        if (!isIgnorableDisconnectError(error)) {
+          console.error("❌ Failed to disconnect room:", error);
+        }
+      }
       // Cleanup all audio elements
       const audioElements = document.querySelectorAll('audio[id^="audio-"]');
       audioElements.forEach((audioElement) => {
@@ -312,7 +338,7 @@ export default function PatientMeetingRoom({
         audioElement.remove();
       });
     };
-  }, [room, token, wsUrl]);
+  }, [room, token, wsUrl, isIgnorableDisconnectError]);
 
   const updateParticipants = useCallback(() => {
     const participantInfos: ParticipantInfo[] = [];

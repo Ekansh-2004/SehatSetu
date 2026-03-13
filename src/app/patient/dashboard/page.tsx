@@ -19,6 +19,9 @@ import {
   ExternalLink,
   Stethoscope,
   Shield,
+  FileImage,
+  Bell,
+  MessageCircle,
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { CLINIC_TIMEZONE } from "@/lib/config/timezone";
@@ -187,6 +190,9 @@ export default function PatientDashboard() {
     return true;
   });
 
+  const latestBookedAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
+  const hasBookedNotification = forms.some((form) => form.status === "appointment_booked") && !!latestBookedAppointment;
+
   const handleJoinVideoCall = (appointment: Appointment) => {
     const roomId = `${appointment.id}`;
     const params = new URLSearchParams({
@@ -216,6 +222,43 @@ export default function PatientDashboard() {
       animate="visible"
       className="space-y-8"
     >
+      {hasBookedNotification && latestBookedAppointment && (
+        <motion.div variants={itemVariants}>
+          <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 shadow-sm">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                <div className="rounded-full bg-blue-100 p-3">
+                  <Bell className="h-5 w-5 text-blue-700" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-800">Appointment booked</p>
+                  <p className="mt-1 text-sm text-blue-900">
+                    Your video consultation with Dr. {latestBookedAppointment.doctor.name} is scheduled for {formatDate(latestBookedAppointment.date)} at {formatTime(latestBookedAppointment.startTime)}.
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700"
+                      onClick={() => router.push("/patient/dashboard/appointments")}
+                    >
+                      View Appointment
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleJoinVideoCall(latestBookedAppointment)}
+                    >
+                      <Video className="h-4 w-4 mr-2" />
+                      Join Video Call
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Quick Stats */}
       <motion.div variants={itemVariants} className={`grid gap-4 ${instantBookingEnabled ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
         {!instantBookingEnabled && (
@@ -291,8 +334,38 @@ export default function PatientDashboard() {
                 onClick={() => router.push("/patient/dashboard/documents")}
               >
                 <Upload className="h-5 w-5 text-blue-600" />
+                <span className="font-medium">Upload Image</span>
+                <span className="text-xs text-gray-500">Predict Disease</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-auto py-4 px-6 flex flex-col items-center gap-2 border-blue-200 hover:bg-blue-50 hover:border-blue-300 text-gray-700"
+                onClick={() => router.push("/patient/dashboard/documents")}
+              >
+                <Upload className="h-5 w-5 text-blue-600" />
                 <span className="font-medium">Upload Document</span>
                 <span className="text-xs text-gray-500">Medical records</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-auto py-4 px-6 flex flex-col items-center gap-2 border-teal-200 hover:bg-teal-50 hover:border-teal-300 text-gray-700"
+                onClick={() => router.push("/patient/dashboard/analyze-report")}
+              >
+                <FileImage className="h-5 w-5 text-teal-600" />
+                <span className="font-medium">Analyze Report</span>
+                <span className="text-xs text-gray-500">Analyze medical report</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="h-auto py-4 px-6 flex flex-col items-center gap-2 border-teal-200 hover:bg-teal-50 hover:border-teal-300 text-gray-700"
+                onClick={() => router.push("/patient/dashboard/chat")}
+              >
+                <MessageCircle className="h-5 w-5 text-teal-600" />
+                <span className="font-medium">Chat</span>
+                <span className="text-xs text-gray-500">Ask about records</span>
               </Button>
 
               <Button

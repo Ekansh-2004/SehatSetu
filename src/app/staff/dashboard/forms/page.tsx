@@ -23,7 +23,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Calendar, User, Phone, Mail, MapPin, Stethoscope, Send, CheckCircle2 } from "lucide-react";
+import { Loader2, Calendar, User, Phone, Mail, MapPin, Stethoscope, Video, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface PatientFormSubmission {
@@ -78,16 +78,15 @@ export default function PatientFormsPage() {
   const [selectedSubmission, setSelectedSubmission] = useState<PatientFormSubmission | null>(null);
   const [activeTab, setActiveTab] = useState(initialStatus);
 
-  // Slot offer modal state
-  const [showSlotOfferModal, setShowSlotOfferModal] = useState(false);
-  const [slotOfferStep, setSlotOfferStep] = useState(1); // 1: Select Doctor, 2: Select Slots
+  // Direct booking modal state
+  const [showBookingModal, setShowBookingModal] = useState(false);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [doctorAvailability, setDoctorAvailability] = useState<DaySchedule[]>([]);
-  const [selectedSlots, setSelectedSlots] = useState<SlotOption[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<SlotOption | null>(null);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
-  const [sendingSlots, setSendingSlots] = useState(false);
+  const [bookingAppointment, setBookingAppointment] = useState(false);
 
   useEffect(() => {
     fetchSubmissions(activeTab);
@@ -193,12 +192,11 @@ export default function PatientFormsPage() {
     setSelectedSubmission(submission);
   };
 
-  const handleSendSlotOptions = (submission: PatientFormSubmission) => {
+  const handleBookAppointment = (submission: PatientFormSubmission) => {
     setSelectedSubmission(submission);
-    setShowSlotOfferModal(true);
-    setSlotOfferStep(1);
+    setShowBookingModal(true);
     setSelectedDoctor(null);
-    setSelectedSlots([]);
+    setSelectedSlot(null);
     setDoctorAvailability([]);
     fetchDoctors();
   };
@@ -207,42 +205,27 @@ export default function PatientFormsPage() {
     const doctor = doctors.find((d) => d.id === doctorId);
     if (doctor) {
       setSelectedDoctor(doctor);
+      setSelectedSlot(null);
       fetchDoctorAvailability(doctorId);
-      setSlotOfferStep(2);
     }
   };
 
-  const handleToggleSlot = (date: string, time: string) => {
+  const handleSelectSlot = (date: string, time: string) => {
     const [hours, minutes] = time.split(":").map(Number);
     const endMinutes = minutes + 30;
     const endHours = hours + Math.floor(endMinutes / 60);
     const finalMinutes = endMinutes % 60;
     const endTime = `${endHours.toString().padStart(2, "0")}:${finalMinutes.toString().padStart(2, "0")}`;
 
-    const slot: SlotOption = {
+    setSelectedSlot({
       date,
       startTime: time,
       endTime,
-    };
-
-    const slotKey = `${date}-${time}`;
-    const existingSlotIndex = selectedSlots.findIndex(
-      (s) => `${s.date}-${s.startTime}` === slotKey
-    );
-
-    if (existingSlotIndex >= 0) {
-      // Remove slot
-      setSelectedSlots(selectedSlots.filter((_, i) => i !== existingSlotIndex));
-    } else {
-      // Add slot
-      setSelectedSlots([...selectedSlots, slot]);
-    }
+    });
   };
 
-  const isSlotSelected = (date: string, time: string) => {
-    const slotKey = `${date}-${time}`;
-    return selectedSlots.some((s) => `${s.date}-${s.startTime}` === slotKey);
-  };
+  const isSlotSelected = (date: string, time: string) =>
+    !!selectedSlot && selectedSlot.date === date && selectedSlot.startTime === time;
 
   const formatSlotForPreview = (slot: SlotOption, index: number) => {
     const date = new Date(slot.date);
@@ -258,39 +241,42 @@ export default function PatientFormsPage() {
     return `${index + 1}. ${dayName}, ${dateStr} at ${timeStr}`;
   };
 
-  const handleSendSlots = async () => {
-    if (!selectedSubmission || !selectedDoctor || selectedSlots.length === 0) {
-      toast.error("Please select doctor and at least one slot");
+  const handleConfirmBooking = async () => {
+    if (!selectedSubmission || !selectedDoctor || !selectedSlot) {
+      toast.error("Please select doctor and one slot");
       return;
     }
 
-    setSendingSlots(true);
+    setBookingAppointment(true);
     try {
-      const response = await fetch("/api/slot-offers/send", {
+      const response = await fetch("/api/staff/book-appointment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientFormId: selectedSubmission.id,
           doctorId: selectedDoctor.id,
-          slots: selectedSlots,
+          slot: selectedSlot,
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        toast.success(`Slot options sent to ${selectedSubmission.name}!`);
-        setShowSlotOfferModal(false);
+        toast.success(`Video appointment booked for ${selectedSubmission.name}`);
+        setShowBookingModal(false);
         setSelectedSubmission(null);
+        setSelectedDoctor(null);
+        setSelectedSlot(null);
+        setDoctorAvailability([]);
         fetchSubmissions(activeTab);
       } else {
-        toast.error(data.error || "Failed to send slot options");
+        toast.error(data.error || "Failed to book appointment");
       }
     } catch (error) {
-      console.error("Error sending slots:", error);
-      toast.error("Failed to send slot options");
+      console.error("Error booking appointment:", error);
+      toast.error("Failed to book appointment");
     } finally {
-      setSendingSlots(false);
+      setBookingAppointment(false);
     }
   };
 
@@ -401,11 +387,11 @@ export default function PatientFormsPage() {
                       {(submission.status === "pending" || submission.status === "reviewed") && (
                         <Button
                           size="sm"
-                          className="bg-purple-600 hover:bg-purple-700"
-                          onClick={() => handleSendSlotOptions(submission)}
+                          className="bg-blue-600 hover:bg-blue-700"
+                          onClick={() => handleBookAppointment(submission)}
                         >
-                          <Send className="h-4 w-4 mr-2" />
-                          Send Slot Options
+                          <Video className="h-4 w-4 mr-2" />
+                          Book Video Call
                         </Button>
                       )}
                       {(submission.status as string) === "slots_confirmed" && (
@@ -428,7 +414,7 @@ export default function PatientFormsPage() {
       </Tabs>
 
       {/* Details Dialog */}
-      <Dialog open={!!selectedSubmission && !showSlotOfferModal} onOpenChange={() => setSelectedSubmission(null)}>
+      <Dialog open={!!selectedSubmission && !showBookingModal} onOpenChange={() => setSelectedSubmission(null)}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Patient Information Details</DialogTitle>
@@ -513,14 +499,14 @@ export default function PatientFormsPage() {
               <div className="flex gap-2 pt-4 border-t">
                 {(selectedSubmission.status === "pending" || selectedSubmission.status === "reviewed") && (
                   <Button
-                    className="bg-purple-600 hover:bg-purple-700 flex-1"
+                    className="bg-blue-600 hover:bg-blue-700 flex-1"
                     onClick={() => {
                       setSelectedSubmission(selectedSubmission);
-                      handleSendSlotOptions(selectedSubmission);
+                      handleBookAppointment(selectedSubmission);
                     }}
                   >
-                    <Send className="h-4 w-4 mr-2" />
-                    Send Slot Options
+                    <Video className="h-4 w-4 mr-2" />
+                    Book Video Call
                   </Button>
                 )}
                 <Button variant="outline" onClick={() => setSelectedSubmission(null)}>
@@ -532,32 +518,29 @@ export default function PatientFormsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Slot Offer Modal */}
-      <Dialog open={showSlotOfferModal} onOpenChange={setShowSlotOfferModal}>
+      {/* Direct Booking Modal */}
+      <Dialog open={showBookingModal} onOpenChange={setShowBookingModal}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Send Slot Options to {selectedSubmission?.name}</DialogTitle>
+            <DialogTitle>Book Video Call for {selectedSubmission?.name}</DialogTitle>
             <DialogDescription>
-              {slotOfferStep === 1
-                ? "Step 1: Select a doctor"
-                : "Step 2: Select available time slots"}
+              Select a doctor and one available slot. The patient will see the booked appointment in their dashboard.
             </DialogDescription>
           </DialogHeader>
 
-          {slotOfferStep === 1 ? (
-            // Step 1: Doctor Selection
-            <div className="space-y-4">
-              {loadingDoctors ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-                </div>
-              ) : (
-                <>
+          <div className="space-y-4">
+            {loadingDoctors ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
                   <Label>Select Doctor ({doctors.length} available)</Label>
                   {doctors.length === 0 ? (
                     <p className="text-sm text-red-600">No doctors found. Please check database.</p>
                   ) : (
-                    <Select onValueChange={handleSelectDoctor}>
+                    <Select onValueChange={handleSelectDoctor} value={selectedDoctor?.id}>
                       <SelectTrigger>
                         <SelectValue placeholder="Choose a doctor" />
                       </SelectTrigger>
@@ -574,135 +557,114 @@ export default function PatientFormsPage() {
                       </SelectContent>
                     </Select>
                   )}
-                </>
-              )}
-            </div>
-          ) : (
-            // Step 2: Slot Selection
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{selectedDoctor?.name}</p>
-                  <p className="text-sm text-gray-500">{selectedDoctor?.specialty}</p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSlotOfferStep(1);
-                    setSelectedSlots([]);
-                  }}
-                >
-                  Change Doctor
-                </Button>
-              </div>
 
-              {loadingAvailability ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-                </div>
-              ) : doctorAvailability.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No available slots found</p>
-              ) : (
-                <>
+                {selectedDoctor && (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label>Select Time Slots</Label>
-                      <p className="text-sm text-gray-600">
-                        Selected: <span className="font-semibold">{selectedSlots.length}</span> slots
-                      </p>
+                    <div className="flex items-center justify-between rounded-lg border p-4 bg-blue-50/40">
+                      <div>
+                        <p className="font-medium">{selectedDoctor.name}</p>
+                        <p className="text-sm text-gray-500">{selectedDoctor.specialty}</p>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Mode: <span className="font-medium text-blue-700">Video Call</span>
+                      </div>
                     </div>
-                    
-                    <div className="space-y-4 max-h-[300px] overflow-y-auto border rounded-lg p-4">
-                      {doctorAvailability.map((day) => {
-                        const availableSlots = day.slots.filter((slot: TimeSlot) => slot.isAvailable);
-                        console.log(`Date ${day.date}: Total slots: ${day.slots.length}, Available: ${availableSlots.length}`);
-                        
-                        return (
-                          <div key={day.date}>
-                            <h4 className="font-medium mb-2">
-                              {new Date(day.date).toLocaleDateString("en-US", {
-                                weekday: "long",
-                                month: "long",
-                                day: "numeric",
-                              })}
-                              <span className="text-sm text-gray-500 ml-2">
-                                ({availableSlots.length} available)
-                              </span>
-                            </h4>
-                            {availableSlots.length === 0 ? (
-                              <p className="text-sm text-gray-500 italic">No available slots on this day</p>
-                            ) : (
-                              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                                {availableSlots.map((slot: TimeSlot) => (
-                                  <div
-                                    key={slot.time}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <Checkbox
-                                      id={`${day.date}-${slot.time}`}
-                                      checked={isSlotSelected(day.date, slot.time)}
-                                      onCheckedChange={() =>
-                                        handleToggleSlot(day.date, slot.time)
-                                      }
-                                    />
-                                    <Label
-                                      htmlFor={`${day.date}-${slot.time}`}
-                                      className="cursor-pointer text-sm"
-                                    >
-                                      {slot.time}
-                                    </Label>
+
+                    {loadingAvailability ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                      </div>
+                    ) : doctorAvailability.length === 0 ? (
+                      <p className="text-center text-gray-500 py-8">No available slots found</p>
+                    ) : (
+                      <>
+                        <div className="space-y-4 max-h-[360px] overflow-y-auto border rounded-lg p-4">
+                          {doctorAvailability.map((day) => {
+                            const availableSlots = day.slots.filter((slot: TimeSlot) => slot.isAvailable);
+
+                            return (
+                              <div key={day.date}>
+                                <h4 className="font-medium mb-2">
+                                  {new Date(day.date).toLocaleDateString("en-US", {
+                                    weekday: "long",
+                                    month: "long",
+                                    day: "numeric",
+                                  })}
+                                  <span className="text-sm text-gray-500 ml-2">
+                                    ({availableSlots.length} available)
+                                  </span>
+                                </h4>
+                                {availableSlots.length === 0 ? (
+                                  <p className="text-sm text-gray-500 italic">No available slots on this day</p>
+                                ) : (
+                                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                    {availableSlots.map((slot: TimeSlot) => (
+                                      <div key={slot.time} className="flex items-center gap-2">
+                                        <Checkbox
+                                          id={`${day.date}-${slot.time}`}
+                                          checked={isSlotSelected(day.date, slot.time)}
+                                          onCheckedChange={() => handleSelectSlot(day.date, slot.time)}
+                                        />
+                                        <Label
+                                          htmlFor={`${day.date}-${slot.time}`}
+                                          className="cursor-pointer text-sm"
+                                        >
+                                          {slot.time}
+                                        </Label>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                )}
                               </div>
-                            )}
+                            );
+                          })}
+                        </div>
+
+                        {selectedSlot && (
+                          <div className="space-y-2">
+                            <Label>Booking Preview</Label>
+                            <Textarea
+                              readOnly
+                              rows={5}
+                              className="bg-gray-50"
+                              value={`Patient: ${selectedSubmission?.name}\nDoctor: ${selectedDoctor.name}\nMode: Video Call\nSlot: ${formatSlotForPreview(selectedSlot, 0).replace(/^1\. /, "")}`}
+                            />
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                        )}
 
-                  {selectedSlots.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>SMS Preview</Label>
-                      <Textarea
-                        readOnly
-                        rows={8}
-                        className="bg-gray-50"
-                        value={`Hi ${selectedSubmission?.name},\n\n${selectedDoctor?.name} has these slots available for you:\n\n${selectedSlots.map((slot, i) => formatSlotForPreview(slot, i)).join("\n")}\n\nReply with the number (1-${selectedSlots.length}) to confirm your preferred slot.`}
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 pt-4 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={() => setSlotOfferStep(1)}
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      className="flex-1 bg-purple-600 hover:bg-purple-700"
-                      disabled={selectedSlots.length === 0 || sendingSlots}
-                      onClick={handleSendSlots}
-                    >
-                      {sendingSlots ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4 mr-2" />
-                          Send to Patient
-                        </>
-                      )}
-                    </Button>
+                        <div className="flex gap-2 pt-4 border-t">
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowBookingModal(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                            disabled={!selectedSlot || bookingAppointment}
+                            onClick={handleConfirmBooking}
+                          >
+                            {bookingAppointment ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Booking...
+                              </>
+                            ) : (
+                              <>
+                                <Video className="h-4 w-4 mr-2" />
+                                Book Video Call
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
-                </>
-              )}
-            </div>
-          )}
+                )}
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -39,7 +39,7 @@ interface AppointmentConfirmationData {
 
 // Helper function to create clinic logo as base64 data for PDF
 const createClinicLogoData = (): string => {
-  // Create a canvas to draw the clinic logo (heart icon with "Clinix" text)
+  // Create a canvas to draw the clinic logo (heart icon with "SehatSetu" text)
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   
@@ -68,11 +68,11 @@ const createClinicLogoData = (): string => {
   ctx.textAlign = 'center';
   ctx.fillText('♥', centerX, centerY + 7);
   
-  // Draw "Clinix" text
+  // Draw "SehatSetu" text
   ctx.fillStyle = '#2563eb';
   ctx.font = 'bold 24px Arial';
   ctx.textAlign = 'left';
-  ctx.fillText('Clinix', 65, 38);
+  ctx.fillText('SehatSetu', 65, 38);
   
   return canvas.toDataURL('image/png');
 };
@@ -249,8 +249,8 @@ export async function generateAppointmentConfirmationPDF(data: AppointmentConfir
   // Footer at bottom of page
   pdf.setFontSize(8);
   pdf.setFont('helvetica', 'normal');
-  pdf.text('Clinix - Your Health, Our Priority', margin, pageHeight - 15);
-  pdf.text('For questions, contact us at info@Clinix.com | (555) 123-4567', margin, pageHeight - 10);
+  pdf.text('SehatSetu - Your Health, Our Priority', margin, pageHeight - 15);
+  pdf.text('For questions, contact us at info@sehatsetu.com | (555) 123-4567', margin, pageHeight - 10);
 
   // Save the PDF
   pdf.save(`appointment-confirmation-${data.appointmentId}.pdf`);
@@ -447,7 +447,7 @@ export async function generateMedicalReportPDF(data: MedicalReportData, download
   pdf.setFontSize(8);
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(24, 132, 171);
-  pdf.text('Clinix - Your Health, Our Priority', margin, footerY);
+  pdf.text('SehatSetu - Your Health, Our Priority', margin, footerY);
 
   if(download){
     const fileName = `consultation-report-${data.patientName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`;

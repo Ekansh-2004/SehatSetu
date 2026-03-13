@@ -196,6 +196,8 @@ export default function PatientDocumentsPage() {
 
       const metadataData = await metadataResponse.json();
 
+      console.error('Init upload response:', metadataData);
+
       if (!metadataData.success) {
         throw new Error(metadataData.error || "Failed to initiate upload");
       }

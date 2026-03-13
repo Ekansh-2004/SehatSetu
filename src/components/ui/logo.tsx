@@ -33,7 +33,7 @@ export function Logo({
     <div className={sizeClasses[size]}>
       <Image
         src="/Logo1.svg"
-        alt="CLINIX by livconnect"
+        alt="SehatSetu by livconnect"
         width={size === "sm" ? 24 : size === "md" ? 32 : 48}
         height={size === "sm" ? 24 : size === "md" ? 32 : 48}
         className="w-full h-full"
@@ -44,7 +44,7 @@ export function Logo({
   const text = (
     <div className="flex flex-col leading-none">
       <span className={`font-black text-blue-600 tracking-tight ${primaryTextSizes[size]}`}>
-        CLINIX
+        SehatSetu
       </span>
       <span className={`font-normal text-slate-500 tracking-wide ${secondaryTextSizes[size]} mt-0.5`}>
         by livconnect

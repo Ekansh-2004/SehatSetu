@@ -92,6 +92,17 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
     },
     ref
   ) => {
+    const isIgnorableDisconnectError = (error: unknown) => {
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : "";
+
+      return message.toLowerCase().includes("client initiated disconnect");
+    };
+
     const [room, setRoom] = useState<Room | null>(null);
     const [connectionState, setConnectionState] = useState<ConnectionState>(
       ConnectionState.Disconnected
@@ -362,6 +373,11 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
         console.log("Connected to LiveKit room:", newRoom.name);
         onCallStart?.();
       } catch (error) {
+        if (isIgnorableDisconnectError(error)) {
+          console.log("LiveKit disconnected by client action");
+          return;
+        }
+
         console.error("Failed to connect to room:", error);
       }
     };

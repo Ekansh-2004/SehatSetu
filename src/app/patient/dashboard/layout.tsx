@@ -27,6 +27,8 @@ import {
   Shield,
   Plus,
   CalendarPlus,
+  FileImage,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -59,11 +61,29 @@ const navItems: NavItem[] = [
     description: "Submitted intake forms",
     hideOnInstantBooking: true
   },
+    {
+    title: "Predict Disease", 
+    href: "/patient/dashboard/predict", 
+    icon: FolderOpen,
+    description: "AI-powered disease prediction"
+  },
   { 
     title: "Medical Documents", 
     href: "/patient/dashboard/documents", 
     icon: FolderOpen,
     description: "HIPAA compliant storage"
+  },
+  {
+    title: "Analyze Report",
+    href: "/patient/dashboard/analyze-report",
+    icon: FileImage,
+    description: "Analyze medical reports",
+  },
+  {
+    title: "Chat",
+    href: "/patient/dashboard/chat",
+    icon: MessageCircle,
+    description: "Ask about your health records",
   },
   { 
     title: "Appointments", 

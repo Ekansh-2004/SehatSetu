@@ -19,7 +19,7 @@ export default function PrivacyPolicy() {
         {/* Title */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2" style={{ color: '#2192B4' }}>Privacy Policy</h1>
-          <p className="text-lg text-gray-600">Clinix by LivConnect</p>
+          <p className="text-lg text-gray-600">SehatSetu by LivConnect</p>
           <p className="text-sm text-gray-500 mt-2">
             Effective: November 22, 2025 | Last Updated: November 22, 2025
           </p>
@@ -29,7 +29,7 @@ export default function PrivacyPolicy() {
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-4" style={{ color: '#2192B4' }}>Introduction</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
-            Clinix by LivConnect (&quot;Clinix,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting patient and provider privacy. This Privacy Policy explains how Clinix collects, uses, discloses, and safeguards information when healthcare units and organizations (&quot;Providers&quot;) use our OPD (Outpatient Department) management services (&quot;the Services&quot;).
+            SehatSetu by LivConnect (&quot;SehatSetu,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting patient and provider privacy. This Privacy Policy explains how SehatSetu collects, uses, discloses, and safeguards information when healthcare units and organizations (&quot;Providers&quot;) use our OPD (Outpatient Department) management services (&quot;the Services&quot;).
           </p>
           <p className="text-gray-700 leading-relaxed">
             <strong>By using the Services, you agree to the terms described in this Privacy Policy.</strong>
@@ -41,16 +41,16 @@ export default function PrivacyPolicy() {
           <h2 className="text-2xl font-bold mb-4" style={{ color: '#2192B4' }}>1. Definitions</h2>
           <dl className="space-y-4">
             <div>
-              <dt className="font-semibold text-gray-900">Clinix</dt>
-              <dd className="text-gray-700 ml-4">The OPD management solution offered by LivConnect.</dd>
+              <dt className="font-semibold text-gray-900">SehatSetu</dt>
+                <dd className="text-gray-700 ml-4">The OPD management solution offered by LivConnect.</dd>
               </div>
             <div>
               <dt className="font-semibold text-gray-900">Provider</dt>
-              <dd className="text-gray-700 ml-4">Hospitals, clinics, and healthcare organizations that use Clinix to manage outpatient workflows.</dd>
+              <dd className="text-gray-700 ml-4">Hospitals, clinics, and healthcare organizations that use SehatSetu to manage outpatient workflows.</dd>
             </div>
             <div>
               <dt className="font-semibold text-gray-900">Patient</dt>
-              <dd className="text-gray-700 ml-4">An individual who fills out the patient form and interacts with the Provider using Clinix Services.</dd>
+              <dd className="text-gray-700 ml-4">An individual who fills out the patient form and interacts with the Provider using SehatSetu Services.</dd>
             </div>
             <div>
               <dt className="font-semibold text-gray-900">Personal Information</dt>
@@ -62,7 +62,7 @@ export default function PrivacyPolicy() {
             </div>
             <div>
               <dt className="font-semibold text-gray-900">Services</dt>
-              <dd className="text-gray-700 ml-4">OPD management tools, patient appointment workflows, and SMS communication functionalities provided by Clinix.</dd>
+              <dd className="text-gray-700 ml-4">OPD management tools, patient appointment workflows, and SMS communication functionalities provided by SehatSetu.</dd>
             </div>
           </dl>
         </section>
@@ -71,7 +71,7 @@ export default function PrivacyPolicy() {
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-4" style={{ color: '#2192B4' }}>2. Information We Collect</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
-            Clinix collects information solely for enabling OPD-related interactions between the Provider and the Patient.
+            SehatSetu collects information solely for enabling OPD-related interactions between the Provider and the Patient.
           </p>
           
           <h3 className="text-xl font-semibold mb-3 mt-6" style={{ color: '#2192B4' }}>2.1 Patient Information</h3>
@@ -104,8 +104,8 @@ export default function PrivacyPolicy() {
           </ul>
 
           <div className="mt-6 p-4 bg-gray-100 border-l-4 border-gray-900">
-            <p className="text-gray-900 font-semibold">
-              Clinix does not collect or store medical records, treatment history, or any clinical data beyond what is essential for booking appointments.
+              <p className="text-gray-900 font-semibold">
+              SehatSetu does not collect or store medical records, treatment history, or any clinical data beyond what is essential for booking appointments.
             </p>
           </div>
         </section>
@@ -114,7 +114,7 @@ export default function PrivacyPolicy() {
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-4" style={{ color: '#2192B4' }}>3. How We Use Information</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
-          Clinix uses collected information only for the following purposes:
+          SehatSetu uses collected information only for the following purposes:
         </p>
 
           <h3 className="text-xl font-semibold mb-3" style={{ color: '#2192B4' }}>3.1 To Facilitate Appointments</h3>
@@ -143,8 +143,8 @@ export default function PrivacyPolicy() {
           </ul>
 
           <div className="mt-6 p-4 bg-yellow-50 border-l-4 border-yellow-500">
-            <p className="text-gray-900 font-semibold">
-              ⚠️ Clinix does not use patient data for analytics, marketing, AI training, or profiling.
+              <p className="text-gray-900 font-semibold">
+              ⚠️ SehatSetu does not use patient data for analytics, marketing, AI training, or profiling.
             </p>
           </div>
         </section>
@@ -156,12 +156,12 @@ export default function PrivacyPolicy() {
           <h3 className="text-xl font-semibold mb-3" style={{ color: '#2192B4' }}>4.1 Data Ownership</h3>
           <ul className="list-disc list-inside text-gray-700 space-y-1 ml-4 mb-4">
             <li>All patient data belongs exclusively to the Provider</li>
-            <li>Clinix acts only as a technical facilitator</li>
+            <li>SehatSetu acts only as a technical facilitator</li>
           </ul>
 
           <h3 className="text-xl font-semibold mb-3" style={{ color: '#2192B4' }}>4.2 Data Sharing</h3>
           <p className="text-gray-700 mb-4">
-            Clinix shares patient-provided information <strong>only</strong> with the Provider the patient is interacting with.
+            SehatSetu shares patient-provided information <strong>only</strong> with the Provider the patient is interacting with.
           </p>
           <p className="text-gray-700 mb-2 font-semibold">No patient information is ever shared with:</p>
           <ul className="list-disc list-inside text-gray-700 space-y-1 ml-4 mb-4">
@@ -171,13 +171,13 @@ export default function PrivacyPolicy() {
           </ul>
 
           <h3 className="text-xl font-semibold mb-3" style={{ color: '#2192B4' }}>4.3 Third-Party Service Providers</h3>
-          <p className="text-gray-700 mb-2">
-            Clinix uses trusted SMS gateway partners solely to deliver appointment-related messages.
+            <p className="text-gray-700 mb-2">
+            SehatSetu uses trusted SMS gateway partners solely to deliver appointment-related messages.
           </p>
           <ul className="list-disc list-inside text-gray-700 space-y-1 ml-4">
             <li>Partners receive only phone number and message content for SMS delivery</li>
             <li>No health-related or sensitive personal information is shared</li>
-            <li>Clinix does not store patient data beyond what is needed for SMS dispatch</li>
+            <li>SehatSetu does not store patient data beyond what is needed for SMS dispatch</li>
           </ul>
         </section>
 
@@ -185,11 +185,11 @@ export default function PrivacyPolicy() {
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-4" style={{ color: '#2192B4' }}>5. Data Storage & Retention</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
-            Clinix follows a <strong>minimal data retention model</strong>:
+            SehatSetu follows a <strong>minimal data retention model</strong>:
           </p>
           <ul className="list-disc list-inside text-gray-700 space-y-2 ml-4">
             <li>Patient data collected through forms is immediately forwarded to the Provider</li>
-            <li>Clinix does not permanently store or retain patient records</li>
+            <li>SehatSetu does not permanently store or retain patient records</li>
             <li>Temporary logs required for SMS delivery or system reliability are retained only for troubleshooting and compliance requirements, after which they are securely deleted</li>
             <li>Providers may maintain and store patient data according to their own internal policies and regulations</li>
           </ul>
@@ -216,7 +216,7 @@ export default function PrivacyPolicy() {
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-4" style={{ color: '#2192B4' }}>7. Patient Rights</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
-            Since Clinix does not retain patient data, all rights and requests—such as data correction, deletion, or access—must be directed to the <strong>Provider</strong> who collected the information.
+            Since SehatSetu does not retain patient data, all rights and requests—such as data correction, deletion, or access—must be directed to the <strong>Provider</strong> who collected the information.
           </p>
           <p className="text-gray-700 leading-relaxed">
             Clinix will assist Providers in fulfilling lawful rights requests where applicable.
@@ -240,7 +240,7 @@ export default function PrivacyPolicy() {
             For any questions or concerns about this Privacy Policy or our privacy practices:
           </p>
           <div className="ml-4">
-            <p className="text-gray-900 font-semibold mb-2">Clinix by LivConnect</p>
+            <p className="text-gray-900 font-semibold mb-2">SehatSetu by LivConnect</p>
             <p className="text-gray-700">
               Email: <a href="mailto:admin@sanvro.com" className="text-blue-600 hover:underline">admin@sanvro.com</a>
             </p>
@@ -255,7 +255,7 @@ export default function PrivacyPolicy() {
       <footer className="border-t border-gray-200 bg-gray-50 py-8 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <p className="text-sm text-gray-600">
-              © 2025 Clinix by LivConnect. All rights reserved.
+              © 2025 SehatSetu by LivConnect. All rights reserved.
             </p>
         </div>
       </footer>

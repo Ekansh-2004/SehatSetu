@@ -318,7 +318,7 @@ function PatientSignUpForm() {
                   htmlFor="acceptPrivacyPolicy"
                   className="text-sm text-gray-600 leading-tight cursor-pointer"
                 >
-                  By clicking continue, I agree to Clinix's{" "}
+                  By clicking continue, I agree to SehatSetu's{" "}
                   <Link href="/privacy-policy" target="_blank" className="text-blue-600 hover:underline">
                     privacy policy
                   </Link>

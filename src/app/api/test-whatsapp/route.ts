@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     // Send WhatsApp message
     const result = await sendGenericWhatsAppMessage(
       to,
-      message || 'Test message from ClinixAI! 🏥'
+      message || 'Test message from SehatSetuAI! 🏥'
     );
 
     if (!result.success) {

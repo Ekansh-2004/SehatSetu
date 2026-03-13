@@ -28,6 +28,7 @@ import {
   Plus,
   CalendarPlus,
   FileImage,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -60,6 +61,12 @@ const navItems: NavItem[] = [
     description: "Submitted intake forms",
     hideOnInstantBooking: true
   },
+    {
+    title: "Predict Disease", 
+    href: "/patient/dashboard/predict", 
+    icon: FolderOpen,
+    description: "AI-powered disease prediction"
+  },
   { 
     title: "Medical Documents", 
     href: "/patient/dashboard/documents", 
@@ -73,10 +80,10 @@ const navItems: NavItem[] = [
     description: "Analyze medical reports",
   },
   {
-    title: "Predict Disease", 
-    href: "/patient/dashboard/predict", 
-    icon: FolderOpen,
-    description: "AI-powered disease prediction"
+    title: "Chat",
+    href: "/patient/dashboard/chat",
+    icon: MessageCircle,
+    description: "Ask about your health records",
   },
   { 
     title: "Appointments", 

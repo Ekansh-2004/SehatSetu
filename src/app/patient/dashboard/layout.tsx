@@ -71,6 +71,12 @@ const navItems: NavItem[] = [
     icon: Calendar,
     description: "Confirmed consultations"
   },
+  { 
+    title: "Government Schemes", 
+    href: "/scheme?role=patient", 
+    icon: Shield,
+    description: "Available health schemes"
+  },
 ];
 
 export default function PatientDashboardLayout({ children }: { children: ReactNode }) {

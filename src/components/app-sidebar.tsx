@@ -13,6 +13,7 @@ import {
   UserCog,
   Search,
   Scan,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -127,6 +128,12 @@ const data = {
       icon: Scan,
       iconClass: "sidebar-icon-imaging",
       badge: "Beta",
+    },
+    {
+      title: "Government Schemes",
+      url: "/scheme?role=doctor",
+      icon: Shield,
+      iconClass: "sidebar-icon-schemes",
     },
   ],
   clinicModules: [

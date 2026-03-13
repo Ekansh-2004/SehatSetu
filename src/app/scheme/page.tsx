@@ -7,7 +7,7 @@ import { Logo } from "@/components/ui/logo";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle, ExternalLink, Shield, Stethoscope, Users, Heart, Frown } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 const roleConfig = {
@@ -47,6 +47,7 @@ type SchemeType = {
 
 function SchemeContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const roleStr = searchParams?.get("role") || "patient";
   const role = roleStr as keyof typeof roleConfig;
   
@@ -90,12 +91,10 @@ function SchemeContent() {
         <div className="absolute inset-0 bg-white/50" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="flex items-center justify-between mb-8">
-            <Link href="/home">
-              <Button variant="ghost" className="flex items-center space-x-2">
-                <ArrowLeft className="h-4 w-4" />
-                <span>Back to Home</span>
-              </Button>
-            </Link>
+            <Button variant="ghost" className="flex items-center space-x-2" onClick={() => router.back()}>
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back</span>
+            </Button>
             <Logo size="sm" />
           </div>
 

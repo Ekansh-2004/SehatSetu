@@ -1,0 +1,6 @@
+To https://github.com/Sanskriti0805/webapp.git
+ * [new branch]      bugfix/video-camera-microphone-cleanup -> bugfix/video-camera-microphone-cleanup
+ * [new branch]      feature/end-consultation-fix -> feature/end-consultation-fix
+ * [new branch]      feature/ipad-fix -> feature/ipad-fix
+ * [new branch]      feature/patient-dashboard-implementation -> feature/patient-dashboard-implementation
+ * [new branch]      ipad-fix -> ipad-fix

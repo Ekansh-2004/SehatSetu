@@ -1,0 +1,22 @@
+{
+  "name": "CLINIX by livconnect - Healthcare Appointment Booking",
+  "short_name": "CLINIX",
+  "description": "Quick and easy appointment booking with healthcare professionals",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32",
+      "type": "image/x-icon"
+    }
+  ],
+  "theme_color": "#1A5FFC",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/"
+}

@@ -1,0 +1,1 @@
+// Legacy MongoDB seeding file removed. Use Prisma-based seeding in scripts/seed-db.ts 

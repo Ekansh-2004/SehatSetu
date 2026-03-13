@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Doctor {
+  id                     String             @id @default(cuid())
+  clerkUserId            String?            @unique
+  name                   String
+  email                  String             @unique
+  phone                  String             @default("Not provided")
+  specialty              String
+  experience             Int
+  rating                 Float
+  consultationFee        Float
+  location               String
+  bio                    String             @db.Text
+  education              Json
+  languages              Json
+  image                  String?
+  isActive               Boolean            @default(true)
+  defaultSessionDuration Int                @default(30)
+  maxPatientsPerDay      Int                @default(20)
+  advanceBookingDays     Int                @default(30)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  appointments           Appointment[]
+  doctorSlots            DoctorSlot[]
+  fileMetadata           FileMetadata[]
+  sessionAnalytics       SessionAnalytics[]
+  slotOffers             SlotOffer[]
+
+  @@map("doctors")
+}
+
+model DoctorSlot {
+  id         String @id @default(cuid())
+  doctorId   String
+  timeRanges String @default("[]")
+  rrule      String @db.Text
+  doctor     Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@map("doctor_slots")
+}
+
+model Patient {
+  id                           String                  @id @default(cuid())
+  clerkUserId                  String?                 @unique
+  name                         String
+  email                        String                  @unique
+  phone                        String?                 @unique
+  dateOfBirth                  DateTime?
+  gender                       String?
+  street                       String?
+  city                         String?
+  state                        String?
+  zipCode                      String?
+  emergencyContactName         String?
+  emergencyContactPhone        String?
+  emergencyContactRelationship String?
+  medicalHistory               Json?
+  allergies                    Json?
+  currentMedications           Json?
+  insuranceProvider            String?
+  insurancePolicyNumber        String?
+  insuranceGroupNumber         String?
+  isActive                     Boolean                 @default(true)
+  createdAt                    DateTime                @default(now())
+  updatedAt                    DateTime                @updatedAt
+  type                         String                  @default("verified")
+  consentToAlerts              Boolean                 @default(false)
+  password                     String?
+  appointments                 Appointment[]
+  fileMetadata                 FileMetadata[]
+  formSubmissions              PatientFormSubmission[]
+  sessionAnalytics             SessionAnalytics[]
+
+  @@map("patients")
+}
+
+model Appointment {
+  id                          String            @id @default(cuid())
+  patientId                   String?
+  doctorId                    String
+  date                        DateTime
+  startTime                   String
+  endTime                     String
+  status                      String            @default("scheduled")
+  type                        String            @default("consultation")
+  reason                      String            @db.Text
+  notes                       String?           @db.Text
+  symptoms                    Json
+  diagnosis                   String?           @db.Text
+  prescription                String?           @db.Text
+  followUpRequired            Boolean           @default(false)
+  followUpDate                DateTime?
+  paymentStatus               String            @default("pending")
+  paymentAmount               Float
+  stripePaymentIntentId       String?
+  stripeSessionId             String?
+  reminderSent                Boolean           @default(false)
+  guestName                   String?
+  guestEmail                  String?
+  guestPhone                  String?
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+  consultationSummaryFileUuid String?
+  mode                        String            @default("physical")
+  doctor                      Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient                     Patient?          @relation(fields: [patientId], references: [id])
+  sessionAnalytics            SessionAnalytics?
+
+  @@index([doctorId])
+  @@index([patientId])
+  @@map("appointments")
+}
+
+model FileMetadata {
+  id             String    @id @default(cuid())
+  uuid           String    @unique @default(cuid())
+  fileName       String
+  fileExtension  String?
+  fileSize       Int?
+  mimeType       String?
+  s3Key          String
+  s3Bucket       String
+  s3Url          String?
+  tenantId       String?
+  patientId      String?
+  doctorId       String?
+  category       String    @default("other")
+  description    String?   @db.Text
+  isUpdated      Boolean   @default(false)
+  isActive       Boolean   @default(true)
+  uploadedBy     String?
+  uploadedAt     DateTime  @default(now())
+  lastAccessedAt DateTime?
+  accessCount    Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  doctor         Doctor?   @relation(fields: [doctorId], references: [id])
+  patient        Patient?  @relation(fields: [patientId], references: [id])
+
+  @@index([uuid])
+  @@index([tenantId, patientId])
+  @@index([tenantId, doctorId])
+  @@index([isActive, uploadedAt])
+  @@index([s3Key, s3Bucket])
+  @@index([doctorId])
+  @@index([patientId])
+  @@map("file_metadata")
+}
+
+model Admin {
+  id          String    @id @default(cuid())
+  clerkUserId String?   @unique
+  email       String    @unique
+  name        String
+  role        String    @default("admin")
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("admins")
+}
+
+model Staff {
+  id                     String                  @id @default(cuid())
+  clerkUserId            String?                 @unique
+  email                  String                  @unique
+  name                   String
+  phone                  String?
+  role                   String                  @default("staff")
+  isActive               Boolean                 @default(true)
+  lastLoginAt            DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  patientFormSubmissions PatientFormSubmission[]
+
+  @@map("staff")
+}
+
+model PatientFormSubmission {
+  id                           String      @id @default(cuid())
+  patientId                    String?
+  staffId                      String?
+  name                         String
+  email                        String
+  phone                        String?
+  dateOfBirth                  DateTime
+  gender                       String
+  street                       String?
+  city                         String?
+  state                        String?
+  zipCode                      String?
+  emergencyContactName         String?
+  emergencyContactPhone        String?
+  emergencyContactRelationship String?
+  medicalHistory               Json
+  allergies                    Json
+  currentMedications           Json
+  insuranceProvider            String?
+  insurancePolicyNumber        String?
+  insuranceGroupNumber         String?
+  status                       String      @default("pending")
+  notes                        String?     @db.Text
+  appointmentId                String?
+  createdAt                    DateTime    @default(now())
+  updatedAt                    DateTime    @updatedAt
+  patient                      Patient?    @relation(fields: [patientId], references: [id])
+  staff                        Staff?      @relation(fields: [staffId], references: [id])
+  slotOffers                   SlotOffer[]
+
+  @@index([patientId])
+  @@index([staffId])
+  @@index([status])
+  @@map("patient_form_submissions")
+}
+
+model SessionAnalytics {
+  id                          String      @id @default(cuid())
+  appointmentId               String      @unique
+  doctorId                    String
+  patientId                   String?
+  sessionStartTime            DateTime?
+  sessionEndTime              DateTime?
+  sessionDurationMinutes      Int?
+  deepgramDurationSeconds     Int         @default(0)
+  deepgramStartTime           DateTime?
+  deepgramEndTime             DateTime?
+  deepgramUsageMinutes        Float?
+  openaiSummaryTokens         Int         @default(0)
+  openaiQuestionsTokens       Int         @default(0)
+  openaiEmbeddingTokens       Int         @default(0)
+  openaiTotalTokens           Int         @default(0)
+  openaiSummaryInputTokens    Int         @default(0)
+  openaiSummaryOutputTokens   Int         @default(0)
+  openaiQuestionsInputTokens  Int         @default(0)
+  openaiQuestionsOutputTokens Int         @default(0)
+  openaiEmbeddingInputTokens  Int         @default(0)
+  pdfGenerated                Boolean     @default(false)
+  pdfGenerationTime           DateTime?
+  pdfEditCount                Int         @default(0)
+  pdfLastEdited               DateTime?
+  createdAt                   DateTime    @default(now())
+  updatedAt                   DateTime    @updatedAt
+  deepgramBilledHours         Float?
+  deepgramRequestIds          Json?
+  appointment                 Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  doctor                      Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient                     Patient?    @relation(fields: [patientId], references: [id])
+
+  @@index([doctorId])
+  @@index([patientId])
+  @@index([createdAt])
+  @@index([sessionStartTime])
+  @@map("session_analytics")
+}
+
+model SlotOffer {
+  id                   String                @id @default(cuid())
+  patientFormId        String
+  doctorId             String
+  doctorName           String
+  slots                Json
+  status               String                @default("pending")
+  patientConfirmedSlot Json?
+  sentAt               DateTime              @default(now())
+  confirmedAt          DateTime?
+  expiresAt            DateTime
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  messageId            String?
+  doctor               Doctor                @relation(fields: [doctorId], references: [id])
+  patientForm          PatientFormSubmission @relation(fields: [patientFormId], references: [id], onDelete: Cascade)
+
+  @@index([patientFormId])
+  @@index([status])
+  @@index([doctorId])
+  @@map("slot_offers")
+}

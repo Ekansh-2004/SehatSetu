@@ -1,0 +1,210 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F6F8FF"/>
+      <stop offset="55%" stop-color="#F4F7FF"/>
+      <stop offset="100%" stop-color="#F9FAFB"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#FBFCFF"/>
+    </linearGradient>
+    <linearGradient id="ai" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EEF2FF"/>
+      <stop offset="100%" stop-color="#ECFEFF"/>
+    </linearGradient>
+    <linearGradient id="cta" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#F97316"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0B1220" flood-opacity="0.14"/>
+    </filter>
+    <filter id="shadowSoft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#0B1220" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .text-xs { font: 500 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill:#64748B; }
+      .text-sm { font: 500 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill:#475569; }
+      .text-md { font: 600 16px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill:#0F172A; }
+      .text-lg { font: 700 20px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill:#0F172A; }
+      .text-xl { font: 800 28px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill:#0F172A; }
+      .mono { font: 600 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; fill:#94A3B8; }
+      .pill { font: 700 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill:#0F172A; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1600" height="900" fill="url(#bg)"/>
+
+  <!-- Top App Bar -->
+  <g filter="url(#shadowSoft)">
+    <rect x="40" y="28" rx="18" ry="18" width="1520" height="74" fill="#FFFFFF"/>
+  </g>
+  <text x="76" y="74" class="text-lg">Clinix</text>
+  <text x="170" y="74" class="text-sm">Consultation</text>
+
+  <!-- Room / status pills -->
+  <g>
+    <rect x="1220" y="46" rx="16" ry="16" width="130" height="36" fill="#ECFDF5" stroke="#A7F3D0"/>
+    <text x="1242" y="70" class="pill">LIVE • Connected</text>
+
+    <rect x="1360" y="46" rx="16" ry="16" width="170" height="36" fill="#EFF6FF" stroke="#BFDBFE"/>
+    <text x="1382" y="70" class="pill">Recording: 12:48</text>
+  </g>
+
+  <!-- Main content grid -->
+  <!-- Left column: video + transcript -->
+  <!-- Right column: AI questions + actions -->
+
+  <!-- Video Row Container -->
+  <g filter="url(#shadow)">
+    <rect x="40" y="120" rx="22" ry="22" width="1060" height="360" fill="url(#card)"/>
+  </g>
+  <text x="76" y="158" class="text-md">Video</text>
+  <text x="130" y="158" class="mono">Two participants • Speaker-aware layout</text>
+
+  <!-- Patient video (big) -->
+  <g>
+    <rect x="76" y="180" rx="18" ry="18" width="660" height="276" fill="#0B1220"/>
+    <rect x="92" y="196" rx="12" ry="12" width="190" height="30" fill="#111827" opacity="0.85"/>
+    <text x="110" y="217" class="text-sm" fill="#E5E7EB">Patient • John Doe</text>
+    <circle cx="708" cy="206" r="8" fill="#22C55E"/>
+    <text x="590" y="218" class="text-xs" fill="#E5E7EB">Mic</text>
+
+    <!-- Fake camera placeholder -->
+    <g opacity="0.65">
+      <rect x="320" y="286" rx="18" ry="18" width="180" height="120" fill="#111827"/>
+      <circle cx="410" cy="346" r="28" fill="#1F2937"/>
+      <rect x="392" y="330" rx="6" ry="6" width="54" height="36" fill="#0B1220"/>
+      <text x="306" y="430" class="text-xs" fill="#CBD5E1">Video stream</text>
+    </g>
+
+    <!-- Bottom controls on tile -->
+    <g>
+      <rect x="92" y="414" rx="12" ry="12" width="250" height="34" fill="#111827" opacity="0.85"/>
+      <text x="112" y="437" class="text-xs" fill="#E5E7EB">Camera</text>
+      <text x="176" y="437" class="text-xs" fill="#E5E7EB">Mic</text>
+      <text x="226" y="437" class="text-xs" fill="#E5E7EB">Share</text>
+      <text x="286" y="437" class="text-xs" fill="#E5E7EB">More</text>
+    </g>
+  </g>
+
+  <!-- Doctor video (side) -->
+  <g>
+    <rect x="760" y="180" rx="18" ry="18" width="304" height="276" fill="#0B1220"/>
+    <rect x="776" y="196" rx="12" ry="12" width="210" height="30" fill="#111827" opacity="0.85"/>
+    <text x="794" y="217" class="text-sm" fill="#E5E7EB">Doctor • Dr. Smith</text>
+    <circle cx="1042" cy="206" r="8" fill="#EF4444"/>
+    <text x="980" y="218" class="text-xs" fill="#E5E7EB">Speaking</text>
+    <g opacity="0.65">
+      <rect x="822" y="294" rx="16" ry="16" width="180" height="120" fill="#111827"/>
+      <circle cx="912" cy="354" r="28" fill="#1F2937"/>
+      <rect x="894" y="338" rx="6" ry="6" width="54" height="36" fill="#0B1220"/>
+      <text x="825" y="430" class="text-xs" fill="#CBD5E1">Video stream</text>
+    </g>
+  </g>
+
+  <!-- Right column: AI Questions -->
+  <g filter="url(#shadow)">
+    <rect x="1120" y="120" rx="22" ry="22" width="440" height="360" fill="url(#ai)" stroke="#C7D2FE"/>
+  </g>
+  <text x="1156" y="158" class="text-md">AI Questions</text>
+  <text x="1260" y="158" class="mono">Context-aware suggestions</text>
+
+  <!-- AI card header actions -->
+  <g>
+    <rect x="1460" y="136" rx="14" ry="14" width="76" height="34" fill="#FFFFFF" opacity="0.95"/>
+    <text x="1482" y="158" class="text-sm">Refresh</text>
+  </g>
+
+  <!-- AI question list -->
+  <g>
+    <rect x="1156" y="184" rx="16" ry="16" width="368" height="64" fill="#FFFFFF" opacity="0.96"/>
+    <text x="1178" y="212" class="text-sm">When did the pain start and how has it progressed?</text>
+    <rect x="1406" y="202" rx="12" ry="12" width="96" height="34" fill="#EEF2FF" stroke="#C7D2FE"/>
+    <text x="1436" y="224" class="text-sm">Ask</text>
+
+    <rect x="1156" y="258" rx="16" ry="16" width="368" height="64" fill="#FFFFFF" opacity="0.96"/>
+    <text x="1178" y="286" class="text-sm">Any red flags: shortness of breath, fever, weakness?</text>
+    <rect x="1406" y="276" rx="12" ry="12" width="96" height="34" fill="#EEF2FF" stroke="#C7D2FE"/>
+    <text x="1436" y="298" class="text-sm">Ask</text>
+
+    <rect x="1156" y="332" rx="16" ry="16" width="368" height="64" fill="#FFFFFF" opacity="0.96"/>
+    <text x="1178" y="360" class="text-sm">Current meds / allergies? Any recent changes?</text>
+    <rect x="1406" y="350" rx="12" ry="12" width="96" height="34" fill="#EEF2FF" stroke="#C7D2FE"/>
+    <text x="1436" y="372" class="text-sm">Ask</text>
+  </g>
+
+  <!-- CTA: End consultation & generate summary -->
+  <g filter="url(#shadow)">
+    <rect x="1120" y="500" rx="22" ry="22" width="440" height="116" fill="#FFFFFF"/>
+  </g>
+  <text x="1156" y="538" class="text-md">Actions</text>
+  <text x="1212" y="538" class="mono">One-click wrap-up</text>
+
+  <g>
+    <rect x="1156" y="556" rx="18" ry="18" width="368" height="52" fill="url(#cta)"/>
+    <text x="1212" y="590" class="text-md" fill="#FFFFFF">End consultation &amp; generate summary</text>
+  </g>
+
+  <!-- Small helper buttons -->
+  <g>
+    <rect x="1156" y="620" rx="14" ry="14" width="118" height="40" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="1186" y="646" class="text-sm">Mute all</text>
+    <rect x="1282" y="620" rx="14" ry="14" width="118" height="40" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="1302" y="646" class="text-sm">Notes</text>
+    <rect x="1408" y="620" rx="14" ry="14" width="116" height="40" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="1430" y="646" class="text-sm">Share</text>
+  </g>
+
+  <!-- Transcript Panel -->
+  <g filter="url(#shadow)">
+    <rect x="40" y="500" rx="22" ry="22" width="1060" height="360" fill="#FFFFFF"/>
+  </g>
+  <text x="76" y="538" class="text-md">Live Transcription</text>
+  <text x="216" y="538" class="mono">Auto-scroll • Search • Speaker tags</text>
+
+  <!-- Transcript header controls -->
+  <g>
+    <rect x="874" y="518" rx="14" ry="14" width="110" height="34" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="902" y="541" class="text-sm">Search</text>
+    <rect x="990" y="518" rx="14" ry="14" width="86" height="34" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="1012" y="541" class="text-sm">Filter</text>
+  </g>
+
+  <!-- Transcript scroll area -->
+  <g>
+    <rect x="76" y="560" rx="18" ry="18" width="988" height="276" fill="#F8FAFC" stroke="#E2E8F0"/>
+
+    <!-- Messages -->
+    <g>
+      <rect x="104" y="588" rx="16" ry="16" width="884" height="64" fill="#FFFFFF"/>
+      <rect x="120" y="604" rx="10" ry="10" width="92" height="26" fill="#EEF2FF" stroke="#C7D2FE"/>
+      <text x="136" y="622" class="text-xs">Speaker 1</text>
+      <text x="224" y="622" class="text-sm">I’ve had this pain for three days; it’s worse when I breathe in.</text>
+      <text x="880" y="622" class="text-xs" text-anchor="end">12:41</text>
+
+      <rect x="104" y="664" rx="16" ry="16" width="884" height="64" fill="#FFFFFF"/>
+      <rect x="120" y="680" rx="10" ry="10" width="92" height="26" fill="#ECFDF5" stroke="#A7F3D0"/>
+      <text x="136" y="698" class="text-xs">Speaker 2</text>
+      <text x="224" y="698" class="text-sm">Any shortness of breath, fever, dizziness, or leg swelling?</text>
+      <text x="880" y="698" class="text-xs" text-anchor="end">12:42</text>
+
+      <rect x="104" y="740" rx="16" ry="16" width="884" height="72" fill="#FFFFFF"/>
+      <rect x="120" y="756" rx="10" ry="10" width="92" height="26" fill="#EEF2FF" stroke="#C7D2FE"/>
+      <text x="136" y="774" class="text-xs">Speaker 1</text>
+      <text x="224" y="774" class="text-sm">No fever. Mild shortness of breath when I walk upstairs.</text>
+      <text x="880" y="774" class="text-xs" text-anchor="end">12:43</text>
+    </g>
+
+    <!-- Scroll hint -->
+    <text x="1000" y="828" class="text-xs" text-anchor="end">Scroll for full transcript ↓</text>
+  </g>
+
+  <!-- Footer hint -->
+  <text x="40" y="885" class="text-xs">Mockup: Two-video layout + AI questions + primary “End consultation &amp; generate summary” + scrollable transcript</text>
+</svg>
+
+
+

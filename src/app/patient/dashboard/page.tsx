@@ -389,6 +389,16 @@ export default function PatientDashboard() {
                   <span className="text-xs text-gray-500">All submissions</span>
                 </Button>
               )}
+
+              <Button
+                variant="outline"
+                className="h-auto py-4 px-6 flex flex-col items-center gap-2 border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-gray-700"
+                onClick={() => router.push("/scheme?role=patient")}
+              >
+                <Shield className="h-5 w-5 text-slate-600" />
+                <span className="font-medium">Government Schemes</span>
+                <span className="text-xs text-gray-500">Available health schemes</span>
+              </Button>
             </div>
           </CardContent>
         </Card>

@@ -5,6 +5,7 @@ import "./globals.css";
 import ReduxProvider from "@/components/ReduxProvider";
 import { AppointmentProvider } from "@/context/AppointmentContext";
 import { Toaster } from "@/components/ui/sonner";
+import GoogleTranslate from "@/components/GoogleTranslate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -70,6 +71,7 @@ export default function RootLayout({
               className={`${geistSans.variable} ${geistMono.variable} antialiased`}
               suppressHydrationWarning
             >
+              <GoogleTranslate />
               {children}
               <Toaster />
             </body>

@@ -937,7 +937,7 @@ export default function EnhancedConsultationPage({
       // Start video call first only for video mode
       if (appointment?.mode === "video" && videoTileRef.current) {
         try {
-          videoTileRef.current.startCall();
+          await videoTileRef.current.startCall();
         } catch (e) {
           console.error("❌ Failed to start video call:", e);
         }

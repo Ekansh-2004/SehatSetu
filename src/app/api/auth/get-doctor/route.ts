@@ -16,17 +16,10 @@ export async function GET() {
 
     // Get existing doctor record
     const doctor = await DatabaseService.getDoctorByClerkUserId(user.id)
-    
-    if (!doctor) {
-      return NextResponse.json(
-        { error: 'Doctor record not found' },
-        { status: 404 }
-      )
-    }
 
     return NextResponse.json({
       success: true,
-      data: doctor
+      data: doctor ?? null
     })
 
   } catch (error) {

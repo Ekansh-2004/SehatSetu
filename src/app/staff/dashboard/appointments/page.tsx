@@ -200,7 +200,7 @@ export default function StaffAppointmentsPage() {
               Appointment Booked Successfully!
             </h2>
             <p className="text-green-700 mb-4">
-              Confirmation SMS has been sent to {patientForm?.name}
+              Patient can now join from their Dashboard at the scheduled time.
             </p>
             <p className="text-sm text-green-600">
               Redirecting to forms page...
@@ -388,7 +388,7 @@ export default function StaffAppointmentsPage() {
               <div className="bg-green-50 p-4 rounded-lg">
                 <h3 className="font-semibold text-green-900 mb-2">Ready to Finalize</h3>
                 <p className="text-sm text-green-700">
-                  Click the button below to create the appointment and send a final confirmation SMS to the patient.
+                  Click the button below to create the appointment and finalize the booking.
                 </p>
               </div>
               

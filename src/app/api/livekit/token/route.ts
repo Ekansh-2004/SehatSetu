@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AccessToken } from 'livekit-server-sdk';
 
+function getLiveKitWsUrl(): string | null {
+  return process.env.LIVEKIT_WS_URL || process.env.LIVEKIT_URL || null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { roomName, participantName, participantRole } = await request.json();
@@ -15,10 +19,11 @@ export async function POST(request: NextRequest) {
 
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
+    const wsUrl = getLiveKitWsUrl();
 
-    if (!apiKey || !apiSecret) {
+    if (!apiKey || !apiSecret || !wsUrl) {
       return NextResponse.json(
-        { error: 'LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set' },
+        { error: 'LIVEKIT_URL/LIVEKIT_WS_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set' },
         { status: 500 }
       );
     }
@@ -50,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       token,
-      wsUrl: process.env.LIVEKIT_WS_URL || 'ws://localhost:7880',
+      wsUrl,
     });
   } catch (error) {
     console.error('Error generating LiveKit token:', error);

@@ -1,13 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RoomServiceClient } from 'livekit-server-sdk';
 
-function getRoomClient(): RoomServiceClient | null {
-  const livekitHost = process.env.LIVEKIT_WS_URL || 'ws://localhost:7880';
-  const apiKey = process.env.LIVEKIT_API_KEY;
-  const apiSecret = process.env.LIVEKIT_API_SECRET;
-  if (!apiKey || !apiSecret) {
+function getLiveKitWsUrl(): string | null {
+  return process.env.LIVEKIT_WS_URL || process.env.LIVEKIT_URL || null;
+}
+
+function getLiveKitServiceUrl(): string | null {
+  const rawUrl = getLiveKitWsUrl();
+
+  if (!rawUrl) {
     return null;
   }
+
+  if (rawUrl.startsWith('wss://')) {
+    return rawUrl.replace('wss://', 'https://');
+  }
+
+  if (rawUrl.startsWith('ws://')) {
+    return rawUrl.replace('ws://', 'http://');
+  }
+
+  return rawUrl;
+}
+
+function getRoomClient(): RoomServiceClient | null {
+  const livekitHost = getLiveKitServiceUrl();
+  const apiKey = process.env.LIVEKIT_API_KEY;
+  const apiSecret = process.env.LIVEKIT_API_SECRET;
+
+  if (!livekitHost || !apiKey || !apiSecret) {
+    return null;
+  }
+
   return new RoomServiceClient(livekitHost, apiKey, apiSecret);
 }
 
@@ -26,7 +50,7 @@ export async function POST(request: NextRequest) {
     const roomClient = getRoomClient();
     if (!roomClient) {
       return NextResponse.json(
-        { error: 'LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set' },
+        { error: 'LIVEKIT_URL/LIVEKIT_WS_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set' },
         { status: 500 }
       );
     }
@@ -59,7 +83,7 @@ export async function GET(request: NextRequest) {
     const roomClient = getRoomClient();
     if (!roomClient) {
       return NextResponse.json(
-        { error: 'LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set' },
+        { error: 'LIVEKIT_URL/LIVEKIT_WS_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set' },
         { status: 500 }
       );
     }
@@ -96,7 +120,7 @@ export async function DELETE(request: NextRequest) {
     const roomClient = getRoomClient();
     if (!roomClient) {
       return NextResponse.json(
-        { error: 'LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set' },
+        { error: 'LIVEKIT_URL/LIVEKIT_WS_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set' },
         { status: 500 }
       );
     }

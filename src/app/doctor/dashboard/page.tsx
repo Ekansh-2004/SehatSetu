@@ -41,20 +41,13 @@ export default function DoctorDashboard() {
 
   const fetchDoctorData = async () => {
     try {
-      console.log('fetching doctor data')
-     const response = await fetchDoctorInfo()
-     
-      console.log(response)
-    
+      const response = await fetchDoctorInfo()
+      if (!response) {
+        // No doctor record yet — create one for this new doctor
+        await createDoctor({})
+      }
     } catch (error) {
       console.error('Error fetching doctor data:', error)
-   
-
-      if (error instanceof Error && error.message.includes('404')) {
-          console.log('Doctor record doesn\'t exist, creating one')
-          // Doctor record doesn't exist, create one
-          await createDoctor({})}
-  
     } finally {
       isFetchDoctorDataCalled.current = false;
     }

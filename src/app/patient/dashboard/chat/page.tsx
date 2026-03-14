@@ -194,7 +194,6 @@ export default function PatientChatPage() {
         body: JSON.stringify({
           user_id:    userId,
           session_id: chat!.id,   // use the chat id as the session id
-          role:       "patient",
           message:    sentText,
           domain:     DOMAIN,
         }),

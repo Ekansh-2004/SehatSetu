@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, MessageCircle, AlertTriangle } from "lucide-react";
+import Link from "next/link";
 
 // ── Types ──────────────────────────────────────────────────────────────── //
 interface Message {
@@ -489,6 +490,23 @@ export default function PatientChatPage() {
                     }`}
                   >
                     {m.text}
+                    {m.sender === "assistant" && m.text !== "Thinking..." && m.text !== "Sorry, I could not reach the server. Please check your connection and try again." && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {!m.emergency ? (
+                          <Link href="/patient/dashboard/forms/new">
+                            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" size="sm">
+                              Virtual Meeting
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Link href="/patient/dashboard/physical-meeting">
+                            <Button className="bg-violet-600 hover:bg-violet-700 text-white" size="sm">
+                              Physical Meeting
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
                     {new Date(m.createdAt).toLocaleString()}

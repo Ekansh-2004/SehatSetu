@@ -580,24 +580,6 @@ function SchemeContent() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Role Switcher */}
-        <div className="flex justify-center mb-12">
-          <div className="inline-flex bg-white rounded-2xl p-2 shadow-lg border border-slate-200">
-            {Object.entries(roleConfig).map(([key, cfg]) => (
-              <Link key={key} href={`/scheme?role=${key}`}>
-                <Button
-                  variant={role === key ? "default" : "ghost"}
-                  className={`flex items-center space-x-2 px-6 py-3 rounded-xl ${
-                    role === key ? `bg-gradient-to-r ${cfg.color} text-white shadow-md` : "text-slate-600 hover:text-slate-800"
-                  }`}
-                >
-                  <cfg.icon className="h-4 w-4" />
-                  <span className="font-medium">{cfg.title.split(" ")[0]}</span>
-                </Button>
-              </Link>
-            ))}
-          </div>
-        </div>
 
         {/* Check Your Eligibility Section */}
         <div className="mb-10 rounded-2xl p-6 sm:p-8" style={{ backgroundColor: "#f0f4ff" }}>

@@ -139,10 +139,6 @@ export default function EnhancedConsultationPage({
       }, 5000);
     },
   });
-  const [suggestedQuestions, setSuggestedQuestions] = useState<
-    QuestionCategory[]
-  >([]);
-  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
   const [currentAudioTime, setCurrentAudioTime] = useState<number>(0);
   const [audioDuration, setAudioDuration] = useState<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -226,53 +222,7 @@ export default function EnhancedConsultationPage({
     chunkDurationMs: 4000,
   });
 
-  const generateQuestions = useCallback(
-    async (
-      finalMessages?: Array<{
-        id: string;
-        speaker: string;
-        text: string;
-        timestamp: number;
-        isInterim?: boolean;
-        confidence?: number;
-      }>
-    ) => {
-      if (isGeneratingQuestions) return;
 
-      // Avoid generating during/after ending
-      if (isCancellationInProgress || appointment?.status === "completed")
-        return;
-
-      // Use provided finalMessages (should always be provided now)
-      if (!finalMessages || finalMessages.length === 0) return;
-
-      setIsGeneratingQuestions(true);
-      try {
-        const conversationText = finalMessages
-          .map((msg) => `${msg.speaker}: ${msg.text}`)
-          .join("\n");
-
-        const response = await fetch("/api/generate-questions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            transcript: conversationText,
-            appointmentId: resolvedAppointmentId 
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setSuggestedQuestions(data.questions || []);
-        }
-      } catch (error) {
-        console.error("Error generating questions:", error);
-      } finally {
-        setIsGeneratingQuestions(false);
-      }
-    },
-    [isGeneratingQuestions, appointment?.status, isCancellationInProgress]
-  ); // Keep only isGeneratingQuestions as dependency
 
   const initializeAudio = useCallback(() => {
     if (!recordedAudio || audioRef.current) return;
@@ -634,34 +584,12 @@ export default function EnhancedConsultationPage({
       finalMessagesRef.current
     );
 
-    // Generate suggestions early and often: after 1st message and then every 2 new final messages
-    const hasNewFinals = finalMessagesCount > finalMessagesRef.current;
-    const shouldGenerate =
-      hasNewFinals &&
-      (finalMessagesCount === 1 || finalMessagesCount % 2 === 0);
-
-    if (shouldGenerate) {
-      if (questionGenerationTimeoutRef.current) {
-        clearTimeout(questionGenerationTimeoutRef.current);
-      }
-
-      questionGenerationTimeoutRef.current = setTimeout(() => {
-        console.log(
-          "🤖 Generating questions for",
-          finalMessagesCount,
-          "final messages"
-        );
-        generateQuestions(finalMessages);
-        finalMessagesRef.current = finalMessagesCount;
-      }, 1200);
-    }
-
     return () => {
       if (questionGenerationTimeoutRef.current) {
         clearTimeout(questionGenerationTimeoutRef.current);
       }
     };
-  }, [messages, generateQuestions]); // Only depend on messages, generateQuestions is now stable
+  }, [messages]); // Only depend on messages
 
   // Handle message highlighting based on current audio time
   useEffect(() => {
@@ -2595,7 +2523,11 @@ export default function EnhancedConsultationPage({
             </CardContent>
           </Card>
 
-          {/* Enhanced Messages Display - Mobile Optimized (hidden on lg; moved to right column on desktop) */}
+        </div>
+
+        {/* Enhanced Sidebar - Right column */}
+        <div className="flex flex-col gap-4 lg:gap-6 min-w-0 lg:col-span-4">
+          {/* Live Conversation Display */}
           <Card className="h-fit">
             <CardHeader className="pb-3 sm:pb-4">
               <CardTitle className="flex items-center space-x-2 text-sm sm:text-base lg:text-lg">
@@ -2658,7 +2590,7 @@ export default function EnhancedConsultationPage({
                   return (
                     <div
                       ref={messagesContainerRef}
-                      className="space-y-3 sm:space-y-4 max-h-[40vh] sm:max-h-[50vh] lg:max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+                      className="space-y-3 sm:space-y-4 max-h-[40vh] sm:max-h-[50vh] lg:max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
                       onScroll={handleScroll}
                       onMouseEnter={() => {
                         // Don't disable auto-scroll on mouse enter, let scroll events handle it
@@ -2845,102 +2777,20 @@ export default function EnhancedConsultationPage({
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="text-center text-gray-500 py-6 sm:py-8 lg:py-12"
+                    className="text-center text-gray-500 py-6 sm:py-8"
                   >
-                    <MessageSquare className="h-8 w-8 sm:h-12 sm:w-12 lg:h-16 lg:w-16 mx-auto mb-2 sm:mb-4 opacity-30" />
-                    <h3 className="text-sm sm:text-base lg:text-lg font-medium mb-1 sm:mb-2">
-                      Ready for Real-time Transcription
+                    <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <h3 className="text-sm font-medium mb-1">
+                      Ready for Transcription
                     </h3>
-                    <p className="text-xs sm:text-sm lg:text-base px-4">
-                      Click &quot;Start Recording&quot; to begin live
-                      transcription with:
-                    </p>
-                    <ul className="mt-2 text-xs sm:text-sm space-y-1 px-4">
-                      <li>• Advanced speaker detection</li>
-                      <li>• Real-time interim results</li>
-                      <li>• Voice activity detection</li>
-                      <li>• Smart endpointing</li>
-                      <li>• Medical vocabulary optimization</li>
-                    </ul>
                   </motion.div>
                 )}
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Enhanced Sidebar - Right column */}
-        <div className="flex flex-col gap-4 lg:gap-6 min-w-0 lg:col-span-4">
-          {/* Right rail: Suggestions only while live; Summary when ending or completed */}
-          {!isCancellationInProgress && !isConsultationCompleted() && !summaryGenerated ? (
-            <Card className="h-fit">
-              <CardHeader className="pb-3 sm:pb-4">
-                <CardTitle className="flex items-center text-sm sm:text-base lg:text-lg">
-                  <div className="flex items-center space-x-2">
-                    <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span>Real-time AI Suggestions</span>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-3 sm:px-6">
-                {suggestedQuestions.length > 0 ? (
-                  <div className="space-y-3 sm:space-y-4">
-                    {suggestedQuestions.map((category, index: number) => (
-                      <motion.div
-                        key={category.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="border rounded-lg p-2 sm:p-3"
-                      >
-                        <h4 className="font-medium text-xs sm:text-sm mb-2">
-                          {category.category}
-                        </h4>
-                        <div className="space-y-1">
-                          {category.questions
-                            .slice(0, 3)
-                            .map((question: string, qIndex: number) => (
-                              <motion.div
-                                key={qIndex}
-                                whileHover={{ scale: 1.01 }}
-                                className="text-xs text-gray-600 p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100 transition-colors break-words"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(question);
-                                }}
-                              >
-                                {question}
-                              </motion.div>
-                            ))}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-4 sm:py-6">
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <Sparkles className="h-4 w-4 sm:h-6 sm:w-6 lg:h-8 lg:w-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-xs sm:text-sm px-4">
-                        {isGeneratingQuestions ? (
-                          <span className="flex items-center justify-center space-x-2">
-                            <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
-                            <span>Generating AI suggestions...</span>
-                          </span>
-                        ) : messages.length === 0 ? (
-                          "AI suggestions will appear as the conversation develops"
-                        ) : (
-                          "Analyzing conversation for relevant suggestions..."
-                        )}
-                      </p>
-                    </motion.div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
+          {/* Right rail: Summary when ending or completed */}
+          {(isCancellationInProgress || isConsultationCompleted() || summaryGenerated) && (
             <Card className="h-fit">
               <CardHeader className="pb-3 sm:pb-4">
                 <CardTitle className="flex items-center space-x-2 text-sm sm:text-base lg:text-lg">

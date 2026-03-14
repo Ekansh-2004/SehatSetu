@@ -127,6 +127,15 @@
   }
 }
 
+/* Urgent task card pulsing border animation */
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 2px 20px 0 rgba(239, 68, 68, 0.12); }
+  50% { box-shadow: 0 2px 28px 0 rgba(239, 68, 68, 0.28); }
+}
+.animate-pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
 @layer components {
   /* Sidebar Icon Colors */
   .sidebar-icon-dashboard {

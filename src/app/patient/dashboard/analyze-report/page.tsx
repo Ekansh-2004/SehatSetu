@@ -22,7 +22,7 @@ export default function AnalyzeReportPage() {
     doctor: [] as { title: string; content: string }[],
   });
 
-  const API_KEY = "AIzaSyBcEuS9lOSwcF0oaG3BQe527YkcPacaI4I";
+  const API_KEY = "AIzaSyD22Js_yz2uaRGplGJluVVUAOvtGUd_CgU";
 
   const API_URL =
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;

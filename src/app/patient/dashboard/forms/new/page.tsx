@@ -20,6 +20,8 @@ import {
   Phone,
   Calendar,
   MapPin,
+  Video,
+  Stethoscope,
   ChevronRight,
   ChevronLeft,
   Check,
@@ -84,6 +86,8 @@ export default function NewPatientFormPage() {
     emergencyContactName: "",
     emergencyContactPhone: "",
     emergencyContactRelationship: "",
+    // Consultation preference
+    consultationMode: "" as "video" | "physical" | "",
   });
 
   useEffect(() => {
@@ -145,6 +149,12 @@ export default function NewPatientFormPage() {
       case 2:
         // Address is optional
         return true;
+      case 3:
+        if (!formData.consultationMode) {
+          toast.error("Please choose consultation type (Video or Physical)");
+          return false;
+        }
+        return true;
       default:
         return true;
     }
@@ -166,12 +176,65 @@ export default function NewPatientFormPage() {
     setSubmitting(true);
 
     try {
+      if (formData.consultationMode === "physical") {
+        const locationCaptured = await new Promise<boolean>((resolve) => {
+          if (!("geolocation" in navigator)) {
+            toast.error("Location is required for physical consultation.");
+            resolve(false);
+            return;
+          }
+
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              try {
+                const response = await fetch("/api/user/location", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    role: "patient",
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                  }),
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.success) {
+                  toast.error(data.error || "Failed to capture your location.");
+                  resolve(false);
+                  return;
+                }
+
+                resolve(true);
+              } catch {
+                toast.error("Failed to capture your location.");
+                resolve(false);
+              }
+            },
+            () => {
+              toast.error("Please allow location access for physical consultation.");
+              resolve(false);
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 12000,
+              maximumAge: 0,
+            }
+          );
+        });
+
+        if (!locationCaptured) {
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const response = await fetch("/api/patient-forms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
           phone: formData.phone || "",
+          consultationMode: formData.consultationMode,
           // Send empty arrays for removed fields
           medicalHistory: [],
           allergies: [],
@@ -548,6 +611,47 @@ export default function NewPatientFormPage() {
                   ) : (
                     <p className="text-gray-500">Not provided</p>
                   )}
+                </div>
+
+                {/* Consultation Mode */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                    <Video className="h-5 w-5 text-indigo-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">Consultation Type *</h3>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, consultationMode: "video" }))}
+                      className={`p-4 rounded-xl border text-left transition ${
+                        formData.consultationMode === "video"
+                          ? "border-indigo-500 bg-indigo-50"
+                          : "border-gray-200 hover:border-indigo-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Video className="h-4 w-4 text-indigo-600" />
+                        <p className="font-medium text-gray-900">Video Consultation</p>
+                      </div>
+                      <p className="text-sm text-gray-600">Talk to doctor online via video call.</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, consultationMode: "physical" }))}
+                      className={`p-4 rounded-xl border text-left transition ${
+                        formData.consultationMode === "physical"
+                          ? "border-emerald-500 bg-emerald-50"
+                          : "border-gray-200 hover:border-emerald-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Stethoscope className="h-4 w-4 text-emerald-600" />
+                        <p className="font-medium text-gray-900">Physical Consultation</p>
+                      </div>
+                      <p className="text-sm text-gray-600">Visit clinic/hospital for in-person consultation.</p>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Info Box */}

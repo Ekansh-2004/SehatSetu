@@ -82,8 +82,12 @@ const data = {
           url: "/doctor/dashboard/appointments",
         },
         {
-          title: "Consultation",
+          title: "Video Consultations",
           url: "/doctor/dashboard/appointments/consultation",
+        },
+        {
+          title: "Physical Consultations",
+          url: "/doctor/dashboard/physical-consultations",
         },
       ],
     },

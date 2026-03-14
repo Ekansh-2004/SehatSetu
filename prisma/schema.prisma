@@ -18,6 +18,10 @@ model Doctor {
   rating                 Float
   consultationFee        Float
   location               String
+  latitude               Float?
+  longitude              Float?
+  clinicAddress          String?
+  address                String?
   bio                    String             @db.Text
   education              Json
   languages              Json
@@ -33,6 +37,7 @@ model Doctor {
   fileMetadata           FileMetadata[]
   sessionAnalytics       SessionAnalytics[]
   slotOffers             SlotOffer[]
+  consultations          Consultation[]
 
   @@map("doctors")
 }
@@ -75,6 +80,8 @@ model Patient {
   type                         String                  @default("verified")
   consentToAlerts              Boolean                 @default(false)
   password                     String?
+  latitude                     Float?
+  longitude                    Float?
   appointments                 Appointment[]
   chatSessions                 ChatSession[]
   fileMetadata                 FileMetadata[]
@@ -82,6 +89,8 @@ model Patient {
   sessionAnalytics             SessionAnalytics[]
   patientRequests              PatientRequest[]
   chatSessions                 ChatSession[]
+  consultations                Consultation[]
+  notifications                Notification[]
 
   @@map("patients")
 }
@@ -339,6 +348,65 @@ model StaffTask {
   @@index([status])
   @@index([createdAt])
   @@map("staff_tasks")
+}
+
+enum ConsultationType {
+  VIDEO
+  PHYSICAL
+}
+
+enum ConsultationStatus {
+  REQUESTED
+  SCHEDULED
+  COMPLETED
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+model Consultation {
+  id                String             @id @default(cuid())
+  consultationType  ConsultationType   @default(PHYSICAL)
+  patientId         String
+  doctorId          String
+  status            ConsultationStatus @default(REQUESTED)
+  symptoms          String             @db.Text
+  preferredDate     DateTime
+  preferredTime     String
+  finalDate         DateTime?
+  finalTime         String?
+  patientName       String
+  patientPhone      String
+  reportFileName    String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  doctor            Doctor             @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient           Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+  @@index([consultationType])
+  @@map("consultations")
+}
+
+model Notification {
+  id            String             @id @default(cuid())
+  patientId     String
+  consultationId String?
+  title         String
+  message       String             @db.Text
+  status        NotificationStatus @default(UNREAD)
+  createdAt     DateTime           @default(now())
+  readAt        DateTime?
+  patient       Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notifications")
 }
 
 enum RequestStatus {

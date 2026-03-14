@@ -29,6 +29,7 @@ import {
   CalendarPlus,
   FileImage,
   MessageCircle,
+  Stethoscope,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -84,6 +85,12 @@ const navItems: NavItem[] = [
     href: "/patient/dashboard/chat",
     icon: MessageCircle,
     description: "Ask about your health records",
+  },
+  {
+    title: "Physical Consultation",
+    href: "/patient/dashboard/physical-consultation",
+    icon: Stethoscope,
+    description: "Book in-clinic visits nearby",
   },
   { 
     title: "Appointments", 

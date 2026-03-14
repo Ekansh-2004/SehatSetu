@@ -860,7 +860,7 @@ export default function EnhancedConsultationPage({
       await startStreaming();
     } else {
       console.log(
-        "▶️ Starting new consultation with enhanced Deepgram streaming..."
+        "▶️ Starting new consultation with browser speech live transcription..."
       );
       // Start video call first only for video mode
       if (appointment?.mode === "video" && videoTileRef.current) {
@@ -975,26 +975,9 @@ export default function EnhancedConsultationPage({
       }
     }
 
-    if (messages.length > 0 && !summaryGenerated) {
-      try {
-        setPdfGenerationMessage("Generating medical summary for review...");
-        
-        const resSummary = await generateSummary();
-        console.log("🔍 Summary generated:", resSummary);
-        
-        setSummary(resSummary);
-        setEditableSummary(resSummary);
-        setSummaryGenerated(true);
-        
-        
-        setPdfGenerationMessage("Summary generated! Please review and edit if needed.");
-        setSummaryGenerationInProgress(false);
-      } catch (error) {
-        console.error("❌ Error generating summary:", error);
-        setPdfGenerationMessage("Error generating summary. Please try again.");
-        setSummaryGenerationInProgress(false);
-      }
-    }
+    // Summary backend removed: proceed directly with report generation flow.
+    await endConsultation();
+    setSummaryGenerationInProgress(false);
   };
 
   const endConsultation = async () => {
@@ -1034,39 +1017,17 @@ export default function EnhancedConsultationPage({
       }
     }
 
-    // Generate final summary first (without PDF generation)
-    if (messages.length > 0 && !summaryGenerated) {
-      try {
-        setPdfGenerationMessage(
-          "Generating medical summary for review..."
-        );
-
-        const resSummary = await generateSummary();
-        console.log("🔍 Summary generated:", resSummary);
-        
-        setSummary(resSummary);
-        setEditableSummary(resSummary);
-        setSummaryGenerated(true);
-        
-
-        setPdfGenerationMessage("Summary generated! Please review and edit if needed.");
-        
-        // Stop here - don't generate PDF yet, wait for user to review/edit
-        setIsCancellationInProgress(false);
-        return;
-      } catch (error) {
-        console.error("❌ Error generating summary:", error);
-        setPdfGenerationMessage("Error generating summary. Please try again.");
-        setIsCancellationInProgress(false);
-        return;
-      }
-    }
-
-    // If summary is already generated, proceed with PDF generation
-    if (summaryGenerated) {
+    // Summary backend removed: generate PDF report directly from transcript.
+    if (messages.length > 0) {
       try {
         setIsGeneratingPdf(true);
         setPdfGenerationMessage("Creating PDF report...");
+        const transcriptSummary =
+          editableSummary ||
+          summary ||
+          messages
+            .map((msg) => `${msg.speaker}: ${msg.text}`)
+            .join("\n");
         // Generate PDF using the edited summary
         const pdf = await generateMedicalReportPDF(
           {
@@ -1075,7 +1036,7 @@ export default function EnhancedConsultationPage({
             time: appointment?.time || "",
             duration: appointment?.duration || "N/A",
             sessionId: resolvedAppointmentId || 'unknown',
-            summary: editableSummary || "",
+            summary: transcriptSummary,
             messages: messages.map((msg) => ({
               speaker: msg.speaker,
               text: msg.text,
@@ -1393,23 +1354,11 @@ export default function EnhancedConsultationPage({
       const conversationText = messages
         .map((msg) => `${msg.speaker}: ${msg.text}`)
         .join("\n");
-
-      const response = await fetch("/api/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transcript: conversationText,
-          appointmentId: resolvedAppointmentId,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSummary(data.summary);
-        setEditableSummary(data.summary);
-        setSummaryGenerated(true);
-        return data.summary;
-      }
+      // Summary backend removed; use transcript text directly.
+      setSummary(conversationText);
+      setEditableSummary(conversationText);
+      setSummaryGenerated(true);
+      return conversationText;
     } catch (error) {
       console.error("Error generating summary:", error);
     }
@@ -2279,7 +2228,7 @@ export default function EnhancedConsultationPage({
                           </Button>
                         </motion.div>
 
-                        {/* Generate Summary & PDF Button */}
+                        {/* Generate Report Button */}
                     <motion.div
                       variants={buttonHoverVariants}
                       whileHover="hover"
@@ -2304,12 +2253,12 @@ export default function EnhancedConsultationPage({
                             {summaryGenerationInProgress ? (
                               <>
                                 <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 animate-spin" />
-                                Generating...
+                                Generating Report...
                               </>
                             ) : (
                               <>
                         <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                                <span className="hidden md:inline">Generate Summary & PDF</span>
+                                <span className="hidden md:inline">Generate Report</span>
                                 <span className="md:hidden">Generate</span>
                               </>
                             )}
@@ -2951,9 +2900,9 @@ export default function EnhancedConsultationPage({
       <Dialog open={showStopConfirmDialog} onOpenChange={setShowStopConfirmDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>End Recording & Generate Summary</DialogTitle>
+            <DialogTitle>End Recording</DialogTitle>
             <DialogDescription>
-              This will stop the recording and generate the medical summary. You won't be able to record further audio after this point.
+              This will stop live transcription for this consultation. You won&apos;t be able to record further audio after this point.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
@@ -2972,12 +2921,12 @@ export default function EnhancedConsultationPage({
               {summaryGenerationInProgress ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
+                  Stopping...
                 </>
               ) : (
                 <>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Continue
+                  <Mic className="h-4 w-4 mr-2" />
+                  Stop Recording
                 </>
               )}
             </Button>

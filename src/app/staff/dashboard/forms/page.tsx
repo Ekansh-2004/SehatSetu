@@ -40,6 +40,7 @@ interface PatientFormSubmission {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   emergencyContactRelationship?: string;
+  consultationMode?: "video" | "physical";
   status: string;
   createdAt: string;
 }
@@ -311,6 +312,17 @@ export default function PatientFormsPage() {
     }
   };
 
+  const getConsultationMode = (submission: PatientFormSubmission): "video" | "physical" =>
+    submission.consultationMode === "video" ? "video" : "physical";
+
+  const videoPendingSubmissions = submissions.filter(
+    (submission) => submission.status === "pending" && getConsultationMode(submission) === "video"
+  );
+
+  const physicalPendingSubmissions = submissions.filter(
+    (submission) => submission.status === "pending" && getConsultationMode(submission) === "physical"
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -337,6 +349,116 @@ export default function PatientFormsPage() {
                 <p className="text-gray-600">No {getStatusLabel(activeTab)} forms found</p>
               </CardContent>
             </Card>
+          ) : activeTab === "pending" ? (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-blue-700">
+                    <Video className="h-5 w-5" />
+                    Video Consultation Pending ({videoPendingSubmissions.length})
+                  </CardTitle>
+                  <CardDescription>Patients requesting video call consultation</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {videoPendingSubmissions.length === 0 ? (
+                    <p className="text-sm text-gray-500">No pending video consultation requests.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {videoPendingSubmissions.map((submission) => (
+                        <Card key={submission.id} className="hover:shadow-md transition-shadow border-blue-100">
+                          <CardContent className="pt-6">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <p className="font-semibold text-gray-900">{submission.name}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Submitted on {new Date(submission.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <Badge className="bg-blue-100 text-blue-800">Video</Badge>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4 text-sm text-gray-600">
+                              <div className="flex items-center gap-2"><Mail className="h-4 w-4" />{submission.email}</div>
+                              <div className="flex items-center gap-2"><Phone className="h-4 w-4" />{submission.phone}</div>
+                              <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />DOB: {new Date(submission.dateOfBirth).toLocaleDateString()}</div>
+                              <div className="flex items-center gap-2"><MapPin className="h-4 w-4" />{submission.city}, {submission.state}</div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => handleViewDetails(submission)}>
+                                View Details
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700"
+                                onClick={() => handleBookAppointment(submission)}
+                              >
+                                <Video className="h-4 w-4 mr-2" />
+                                Book Video Call
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-emerald-700">
+                    <Stethoscope className="h-5 w-5" />
+                    Physical Consultation Pending ({physicalPendingSubmissions.length})
+                  </CardTitle>
+                  <CardDescription>Patients requesting in-person consultation</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {physicalPendingSubmissions.length === 0 ? (
+                    <p className="text-sm text-gray-500">No pending physical consultation requests.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {physicalPendingSubmissions.map((submission) => (
+                        <Card key={submission.id} className="hover:shadow-md transition-shadow border-emerald-100">
+                          <CardContent className="pt-6">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <p className="font-semibold text-gray-900">{submission.name}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Submitted on {new Date(submission.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <Badge className="bg-emerald-100 text-emerald-800">Physical</Badge>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4 text-sm text-gray-600">
+                              <div className="flex items-center gap-2"><Mail className="h-4 w-4" />{submission.email}</div>
+                              <div className="flex items-center gap-2"><Phone className="h-4 w-4" />{submission.phone}</div>
+                              <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />DOB: {new Date(submission.dateOfBirth).toLocaleDateString()}</div>
+                              <div className="flex items-center gap-2"><MapPin className="h-4 w-4" />{submission.city}, {submission.state}</div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => handleViewDetails(submission)}>
+                                View Details
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                                onClick={() => router.push(`/staff/dashboard/physical-consultations/process?formId=${submission.id}`)}
+                              >
+                                <Stethoscope className="h-4 w-4 mr-2" />
+                                Process Physical
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {submissions.map((submission) => (
@@ -352,9 +474,14 @@ export default function PatientFormsPage() {
                           Submitted on {new Date(submission.createdAt).toLocaleDateString()}
                         </CardDescription>
                       </div>
-                      <Badge className={getStatusColor(submission.status)}>
-                        {getStatusLabel(submission.status)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getConsultationMode(submission) === 'video' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}>
+                          {getConsultationMode(submission) === 'video' ? 'Video' : 'Physical'}
+                        </Badge>
+                        <Badge className={getStatusColor(submission.status)}>
+                          {getStatusLabel(submission.status)}
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -384,7 +511,7 @@ export default function PatientFormsPage() {
                       >
                         View Details
                       </Button>
-                      {(submission.status === "pending" || submission.status === "reviewed") && (
+                      {(submission.status === "pending" || submission.status === "reviewed") && getConsultationMode(submission) === 'video' && (
                         <Button
                           size="sm"
                           className="bg-blue-600 hover:bg-blue-700"
@@ -392,6 +519,16 @@ export default function PatientFormsPage() {
                         >
                           <Video className="h-4 w-4 mr-2" />
                           Book Video Call
+                        </Button>
+                      )}
+                      {(submission.status === "pending" || submission.status === "reviewed") && getConsultationMode(submission) === 'physical' && (
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                          onClick={() => router.push(`/staff/dashboard/physical-consultations/process?formId=${submission.id}`)}
+                        >
+                          <Stethoscope className="h-4 w-4 mr-2" />
+                          Process Physical
                         </Button>
                       )}
                       {(submission.status as string) === "slots_confirmed" && (
@@ -497,7 +634,7 @@ export default function PatientFormsPage() {
 
               {/* Action Buttons */}
               <div className="flex gap-2 pt-4 border-t">
-                {(selectedSubmission.status === "pending" || selectedSubmission.status === "reviewed") && (
+                {(selectedSubmission.status === "pending" || selectedSubmission.status === "reviewed") && getConsultationMode(selectedSubmission) === 'video' && (
                   <Button
                     className="bg-blue-600 hover:bg-blue-700 flex-1"
                     onClick={() => {
@@ -507,6 +644,15 @@ export default function PatientFormsPage() {
                   >
                     <Video className="h-4 w-4 mr-2" />
                     Book Video Call
+                  </Button>
+                )}
+                {(selectedSubmission.status === "pending" || selectedSubmission.status === "reviewed") && getConsultationMode(selectedSubmission) === 'physical' && (
+                  <Button
+                    className="bg-emerald-600 hover:bg-emerald-700 flex-1"
+                    onClick={() => router.push(`/staff/dashboard/physical-consultations/process?formId=${selectedSubmission.id}`)}
+                  >
+                    <Stethoscope className="h-4 w-4 mr-2" />
+                    Process Physical
                   </Button>
                 )}
                 <Button variant="outline" onClick={() => setSelectedSubmission(null)}>

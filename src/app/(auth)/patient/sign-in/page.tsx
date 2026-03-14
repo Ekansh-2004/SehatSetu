@@ -41,7 +41,7 @@ export default function PatientSignInPage() {
 
       if (data.success) {
         toast.success("Signed in successfully!");
-        router.push("/patient/dashboard");
+        router.push("/patient/post-login");
       } else {
         toast.error(data.error || "Failed to sign in");
       }
@@ -113,7 +113,7 @@ export default function PatientSignInPage() {
 
       if (data.success) {
         toast.success("Signed in successfully!");
-        router.push("/patient/dashboard");
+        router.push("/patient/post-login");
       } else {
         toast.error(data.error || "Failed to verify OTP");
       }

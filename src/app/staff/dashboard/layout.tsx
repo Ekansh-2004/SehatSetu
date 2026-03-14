@@ -211,6 +211,13 @@ export default function StaffDashboardLayout({
                   Appointments
                 </Link>
                 <Link
+                  href="/staff/dashboard/physical-consultations"
+                  className="flex items-center gap-2 text-gray-700 hover:text-purple-600 transition-colors"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  Physical Requests
+                </Link>
+                <Link
                   href="/staff/dashboard/tasks"
                   className="flex items-center gap-2 text-gray-700 hover:text-[#4a7fff] transition-colors font-medium"
                 >

@@ -6,6 +6,39 @@ import { currentUser } from '@clerk/nextjs/server'
 // Set timeout to 30 seconds to prevent data loss
 export const maxDuration = 30
 
+const CONSULTATION_MODE_PREFIX = '[CONSULTATION_MODE]:'
+
+function normalizeConsultationMode(input: unknown): 'video' | 'physical' {
+  if (typeof input !== 'string') return 'physical'
+  return input.toLowerCase() === 'video' ? 'video' : 'physical'
+}
+
+function buildNotesWithMode(existingNotes: unknown, consultationMode: 'video' | 'physical'): string {
+  const cleaned = typeof existingNotes === 'string'
+    ? existingNotes
+        .split('\n')
+        .filter((line) => !line.startsWith(CONSULTATION_MODE_PREFIX))
+        .join('\n')
+        .trim()
+    : ''
+
+  return cleaned
+    ? `${CONSULTATION_MODE_PREFIX}${consultationMode}\n${cleaned}`
+    : `${CONSULTATION_MODE_PREFIX}${consultationMode}`
+}
+
+function extractConsultationMode(notes: unknown): 'video' | 'physical' {
+  if (typeof notes !== 'string') return 'physical'
+  const markerLine = notes
+    .split('\n')
+    .find((line) => line.startsWith(CONSULTATION_MODE_PREFIX))
+
+  if (!markerLine) return 'physical'
+
+  const mode = markerLine.slice(CONSULTATION_MODE_PREFIX.length).trim().toLowerCase()
+  return mode === 'video' ? 'video' : 'physical'
+}
+
 // Get all patient form submissions (for staff)
 export async function GET(request: NextRequest) {
   try {
@@ -42,9 +75,14 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     })
 
+    const mappedSubmissions = submissions.map((submission) => ({
+      ...submission,
+      consultationMode: extractConsultationMode(submission.notes),
+    }))
+
     return NextResponse.json({
       success: true,
-      data: submissions
+      data: mappedSubmissions
     })
 
   } catch (error) {
@@ -133,7 +171,27 @@ export async function POST(request: NextRequest) {
     // If patient is authenticated, link to their account
     if (patientSessionId) {
       const patient = await prisma.patient.findUnique({
-        where: { id: patientSessionId }
+        where: { id: patientSessionId },
+        // Avoid selecting non-essential columns so missing optional DB columns
+        // (for example from drifted environments) do not break form submission.
+        select: {
+          id: true,
+          phone: true,
+          street: true,
+          city: true,
+          state: true,
+          zipCode: true,
+          emergencyContactName: true,
+          emergencyContactPhone: true,
+          emergencyContactRelationship: true,
+          medicalHistory: true,
+          allergies: true,
+          currentMedications: true,
+          insuranceProvider: true,
+          insurancePolicyNumber: true,
+          insuranceGroupNumber: true,
+          consentToAlerts: true,
+        },
       })
       
       if (patient) {
@@ -195,6 +253,19 @@ export async function POST(request: NextRequest) {
         where: {
           OR: orConditions,
         },
+        select: {
+          id: true,
+          dateOfBirth: true,
+          gender: true,
+          street: true,
+          city: true,
+          state: true,
+          zipCode: true,
+          emergencyContactName: true,
+          emergencyContactPhone: true,
+          emergencyContactRelationship: true,
+          consentToAlerts: true,
+        },
       })
 
       if (existingPatient) {
@@ -255,6 +326,8 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    const consultationMode = normalizeConsultationMode(formData.consultationMode)
+
     // Create form submission
     const submission = await prisma.patientFormSubmission.create({
       data: {
@@ -277,6 +350,7 @@ export async function POST(request: NextRequest) {
         insurancePolicyNumber: formData.insurancePolicyNumber?.trim() || null,
         insuranceGroupNumber: formData.insuranceGroupNumber?.trim() || null,
         status: 'pending',
+        notes: buildNotesWithMode(formData.notes, consultationMode),
         patient: patientId ? {
           connect: { id: patientId }
         } : undefined
@@ -297,7 +371,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: submission,
+      data: {
+        ...submission,
+        consultationMode,
+      },
       message: 'Form submitted successfully. Our staff will contact you soon to schedule your appointment.'
     }, { status: 201 })
 

@@ -4,8 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, MessageCircle, AlertTriangle } from "lucide-react";
-import Link from "next/link";
+import { Plus, MessageCircle, AlertTriangle, Link } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────── //
 interface Message {
@@ -15,7 +14,7 @@ interface Message {
   createdAt: string;
   emergency?: boolean;
   symptoms?: string[];
-  possible_diseases?: { name: string; confidence: number }[];
+  possible_diseases?: { name: string; confidence?: number }[];
   recommendations?: string[];
   follow_up_questions?: string[];
 }
@@ -37,7 +36,7 @@ function nowISO() { return new Date().toISOString(); }
 function formatAssistantText(data: {
   answer?: string;
   symptoms?: string[];
-  possible_diseases?: { name: string; confidence: number }[];
+  possible_diseases?: { name: string; confidence?: number }[];
   recommendations?: string[];
   follow_up_questions?: string[];
   emergency?: boolean;
@@ -52,7 +51,10 @@ function formatAssistantText(data: {
 
   if (data.possible_diseases?.length) {
     const diseases = data.possible_diseases
-      .map((d) => `${d.name} (${Math.round(d.confidence * 100)}%)`)
+      .map((d) => {
+        const hasConf = typeof d.confidence === "number" && Number.isFinite(d.confidence) && d.confidence > 0;
+        return hasConf ? `${d.name} (${Math.round(d.confidence! * 100)}%)` : d.name;
+      })
       .join(", ");
     parts.push(`Possible conditions: ${diseases}`);
   }
@@ -392,6 +394,31 @@ export default function PatientChatPage() {
     }
   };
 
+    const downloadReport = async (sessionId?: string) => {
+      const sid = sessionId || activeChat?.id;
+      if (!sid) {
+        alert("No active session to generate report for.");
+        return;
+      }
+
+      try {
+        const url = `${API_BASE_URL}/report?user_id=${encodeURIComponent(userId)}&session_id=${encodeURIComponent(sid)}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Report request failed: ${response.status}`);
+        const blob = await response.blob();
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `report_${userId}_${sid}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+      } catch (err) {
+        console.error("Report generation failed:", err);
+        alert("Failed to generate report. Check console for details.");
+      }
+    };
+
   // ── Render ─────────────────────────────────────────────────────────────
   if (initialLoading) {
     return (
@@ -490,7 +517,7 @@ export default function PatientChatPage() {
                     }`}
                   >
                     {m.text}
-                    {m.sender === "assistant" && m.text !== "Thinking..." && m.text !== "Sorry, I could not reach the server. Please check your connection and try again." && (
+                      {m.sender === "assistant" && m.text !== "Thinking..." && m.text !== "Sorry, I could not reach the server. Please check your connection and try again." && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {!m.emergency ? (
                           <Link href="/patient/dashboard/forms/new">
@@ -505,6 +532,14 @@ export default function PatientChatPage() {
                             </Button>
                           </Link>
                         )}
+
+                        <Button
+                          size="sm"
+                          className="bg-gray-200 text-gray-800 hover:bg-gray-300"
+                          onClick={() => downloadReport(activeChat?.id)}
+                        >
+                          Generate Report
+                        </Button>
                       </div>
                     )}
                   </div>

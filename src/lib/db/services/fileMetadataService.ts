@@ -99,12 +99,12 @@ export class FileMetadataService {
         throw new Error('File not found')
       }
 
-      // Generate presigned URL from S3
+      // Generate URL for file access
       let presignedUrl: string
       if (fileMetadata.s3Url) {
         presignedUrl = await generatePresignedUrl(fileMetadata.s3Url, expiresIn)
       } else {
-        // Construct S3 URL if not stored
+        // Construct URL from bucket and key if not stored
         const s3Url = `https://${fileMetadata.s3Bucket}.s3.amazonaws.com/${fileMetadata.s3Key}`
         presignedUrl = await generatePresignedUrl(s3Url, expiresIn)
       }
@@ -210,7 +210,7 @@ export class FileMetadataService {
   }
 
   /**
-   * Update S3 details after presigned URL upload
+   * Update storage details after upload
    */
   static async updateS3Details(uuid: string, s3Key: string, s3Url?: string) {
     return this.updateFileMetadata(uuid, {

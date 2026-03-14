@@ -74,10 +74,8 @@ export default function PredictPage() {
 
 **Response Format:**
 - **Diagnosis:** [Medical condition]
-- **Explain-Symptoms-Detected:** [Explanation]
 - **Risk Level:** [Low / Moderate / High]
 - **Confidence Score:** [Percentage]
-- **Recommendation:** [Medical advice]
 - **Prescription:** [Medicine names]`,
               },
               {
@@ -109,13 +107,13 @@ export default function PredictPage() {
         data.candidates?.[0]?.content?.parts?.[0]?.text ||
         "No diagnosis available";
 
+      const parsedPrescription = extract(aiResponse, "Prescription");
+
       const parsed = {
         diagnosis: extract(aiResponse, "Diagnosis"),
-        explanation: extract(aiResponse, "Explain-Symptoms-Detected"),
         risk: extract(aiResponse, "Risk Level"),
         confidence: extract(aiResponse, "Confidence Score"),
-        recommendation: extract(aiResponse, "Recommendation"),
-        prescription: extract(aiResponse, "Prescription"),
+        prescription: parsedPrescription.toLowerCase() === "unknown" ? "Consult a doctor" : parsedPrescription,
       };
 
       setResult(parsed);
@@ -187,10 +185,8 @@ export default function PredictPage() {
                   AI Diagnosis Result
                 </h3>
                 <p><b>Diagnosis:</b> {result.diagnosis}</p>
-                <p><b>Explanation:</b> {result.explanation}</p>
                 <p><b>Risk Level:</b> {result.risk}</p>
                 <p><b>Confidence:</b> {result.confidence}</p>
-                <p><b>Recommendation:</b> {result.recommendation}</p>
                 <p><b>Prescription:</b> {result.prescription}</p>
               </div>
             )}

@@ -2,11 +2,8 @@ export interface TenantConfig {
 	id: string;
 	name: string;
 	domain: string;
-	aws: {
-		accessKeyId: string;
-		secretAccessKey: string;
-		region: string;
-		s3Bucket: string;
+	storage: {
+		bucket: string;
 	};
 	database: {
 		uri: string;
@@ -31,11 +28,8 @@ const tenantConfigs: Record<string, TenantConfig> = {
 		id: "tenant-1",
 		name: "Main Clinic",
 		domain: "mainclinic.com",
-		aws: {
-			accessKeyId: process.env.TENANT_1_AWS_ACCESS_KEY_ID,
-			secretAccessKey: process.env.TENANT_1_AWS_SECRET_ACCESS_KEY,
-			region: "ap-south-1",
-			s3Bucket: "test-livconnect-1",
+		storage: {
+			bucket: "vercel-blob",
 		},
 		database: {
 			uri: "",
@@ -57,11 +51,8 @@ const tenantConfigs: Record<string, TenantConfig> = {
 		id: "tenant-2",
 		name: "Downtown Medical",
 		domain: "downtownmedical.com",
-		aws: {
-			accessKeyId: process.env.TENANT_2_AWS_ACCESS_KEY_ID,
-			secretAccessKey: process.env.TENANT_2_AWS_SECRET_ACCESS_KEY,
-			region: "us-east-1",
-			s3Bucket: "downtown-medical-files",
+		storage: {
+			bucket: "vercel-blob",
 		},
 		database: {
 			uri: "",
@@ -83,11 +74,8 @@ const tenantConfigs: Record<string, TenantConfig> = {
 		id: "tenant-3",
 		name: "Emergency Care",
 		domain: "emergencycare.com",
-		aws: {
-			accessKeyId: process.env.TENANT_3_AWS_ACCESS_KEY_ID,
-			secretAccessKey: process.env.TENANT_3_AWS_SECRET_ACCESS_KEY,
-			region: "us-west-2",
-			s3Bucket: "emergency-care-files",
+		storage: {
+			bucket: "vercel-blob",
 		},
 		database: {
 			uri: "",
@@ -109,11 +97,8 @@ const tenantConfigs: Record<string, TenantConfig> = {
 		id: "default",
 		name: "Default",
 		domain: "default.com",
-		aws: {
-			accessKeyId: process.env.TENANT_DEFAULT_AWS_ACCESS_KEY_ID,
-			secretAccessKey: process.env.TENANT_DEFAULT_AWS_SECRET_ACCESS_KEY,
-			region: "us-west-2",
-			s3Bucket: "emergency-care-files",
+		storage: {
+			bucket: "vercel-blob",
 		},
 		database: {
 			uri: "",
@@ -149,10 +134,10 @@ export class TenantConfigService {
 	}
 
 	/**
-	 * Get tenant configuration by S3 bucket
+	 * Get tenant configuration by storage bucket
 	 */
 	static getTenantConfigByBucket(bucketName: string): TenantConfig | null {
-		return Object.values(tenantConfigs).find((config) => config.aws.s3Bucket === bucketName) || null;
+		return Object.values(tenantConfigs).find((config) => config.storage.bucket === bucketName) || null;
 	}
 
 	/**

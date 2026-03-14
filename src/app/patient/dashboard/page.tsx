@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { DateTime } from "luxon";
+import { usePatientSession } from "@/context/PatientSessionContext";
 import { CLINIC_TIMEZONE } from "@/lib/config/timezone";
 
 interface PatientSession {
@@ -81,7 +82,8 @@ const itemVariants = {
 
 export default function PatientDashboard() {
   const router = useRouter();
-  const [patient, setPatient] = useState<PatientSession | null>(null);
+  // Use shared session from context — no duplicate /api/patient/session call
+  const { patient } = usePatientSession();
   const [forms, setForms] = useState<FormSubmission[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [documents, setDocuments] = useState<MedicalDocument[]>([]);
@@ -92,46 +94,42 @@ export default function PatientDashboard() {
     setInstantBookingEnabled(process.env.NEXT_PUBLIC_INSTANT_BOOKING === 'true');
   }, []);
 
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      // Fetch patient session
-      const sessionRes = await fetch("/api/patient/session");
-      const sessionData = await sessionRes.json();
-      
-      if (!sessionData.success || !sessionData.patient) {
-        router.push("/patient/sign-in");
-        return;
-      }
-      
-      setPatient(sessionData.patient);
-
-      // Fetch forms, appointments, and documents in parallel
-      const [formsRes, appointmentsRes, documentsRes] = await Promise.all([
-        fetch(`/api/patient/forms?patientId=${sessionData.patient.id}`),
-        fetch(`/api/patient/appointments?patientId=${sessionData.patient.id}`),
-        fetch(`/api/patient/documents?patientId=${sessionData.patient.id}`),
-      ]);
-
-      const [formsData, appointmentsData, documentsData] = await Promise.all([
-        formsRes.json(),
-        appointmentsRes.json(),
-        documentsRes.json(),
-      ]);
-
-      if (formsData.success) setForms(formsData.data || []);
-      if (appointmentsData.success) setAppointments(appointmentsData.data || []);
-      if (documentsData.success) setDocuments(documentsData.data || []);
-
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
-
+  // Fetch dashboard data in parallel once patient is available from context
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    if (!patient) return;
+
+    let cancelled = false;
+
+    const fetchData = async () => {
+      try {
+        // Fire ALL 3 requests in parallel — no session waterfall
+        const [formsRes, appointmentsRes, documentsRes] = await Promise.all([
+          fetch(`/api/patient/forms?patientId=${patient.id}`),
+          fetch(`/api/patient/appointments?patientId=${patient.id}`),
+          fetch(`/api/patient/documents?patientId=${patient.id}`),
+        ]);
+
+        const [formsData, appointmentsData, documentsData] = await Promise.all([
+          formsRes.json(),
+          appointmentsRes.json(),
+          documentsRes.json(),
+        ]);
+
+        if (cancelled) return;
+
+        if (formsData.success) setForms(formsData.data || []);
+        if (appointmentsData.success) setAppointments(appointmentsData.data || []);
+        if (documentsData.success) setDocuments(documentsData.data || []);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => { cancelled = true; };
+  }, [patient]);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {

@@ -39,7 +39,7 @@ export const CSP_HEADER = {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://api.stripe.com https://*.clerk.accounts.dev https://*.amazonaws.com",
+    "connect-src 'self' https://api.stripe.com https://*.clerk.accounts.dev",
     "frame-src 'self' https://js.stripe.com https://accounts.google.com",
     "object-src 'none'",
     "base-uri 'self'",

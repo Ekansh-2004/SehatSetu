@@ -55,7 +55,7 @@ export default function GoogleTranslate() {
   return (
     <div
       id="google_translate_element"
-      className="fixed top-4 right-4 z-50 bg-white/80 backdrop-blur px-2 py-1 rounded-md shadow-sm text-xs"
+      className="fixed top-4 right-[200px] z-50 bg-white/80 backdrop-blur px-2 py-0 rounded-md shadow-sm text-xs"
     />
   );
 }

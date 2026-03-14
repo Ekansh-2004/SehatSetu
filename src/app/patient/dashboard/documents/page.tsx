@@ -176,43 +176,21 @@ export default function PatientDocumentsPage() {
     setUploading(true);
 
     try {
-      // Determine MIME type - browsers may not recognize DICOM files
-      const fileExtension = uploadData.file.name.split('.').pop()?.toLowerCase();
-      const isDicom = fileExtension === 'dcm' || fileExtension === 'dicom';
-      const mimeType = uploadData.file.type || (isDicom ? 'application/dicom' : 'application/octet-stream');
-
-      // Step 1: Get presigned URL
-      const metadataResponse = await fetch("/api/patient/documents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileName: uploadData.file.name,
-          fileSize: uploadData.file.size,
-          mimeType: mimeType,
-          category: uploadData.category,
-          description: uploadData.description,
-        }),
-      });
-
-      const metadataData = await metadataResponse.json();
-
-      console.error('Init upload response:', metadataData);
-
-      if (!metadataData.success) {
-        throw new Error(metadataData.error || "Failed to initiate upload");
+      const formData = new FormData();
+      formData.append("file", uploadData.file);
+      formData.append("category", uploadData.category);
+      if (uploadData.description) {
+        formData.append("description", uploadData.description);
       }
 
-      // Step 2: Upload to S3
-      const uploadResponse = await fetch(metadataData.data.presignedUrl, {
-        method: "PUT",
-        body: uploadData.file,
-        headers: {
-          "Content-Type": mimeType,
-        },
+      const uploadResponse = await fetch("/api/patient/documents", {
+        method: "POST",
+        body: formData,
       });
 
-      if (!uploadResponse.ok) {
-        throw new Error("Failed to upload file to storage");
+      const uploadDataResponse = await uploadResponse.json();
+      if (!uploadResponse.ok || !uploadDataResponse.success) {
+        throw new Error(uploadDataResponse.error || "Failed to upload document");
       }
 
       toast.success("Document uploaded successfully");

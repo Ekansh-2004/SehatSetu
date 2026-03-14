@@ -1,19 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db/prisma';
-import AWS from 'aws-sdk';
-
-const s3Config = {
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION || 'ap-south-1',
-};
-
-if (!s3Config.accessKeyId || !s3Config.secretAccessKey) {
-  console.error('❌ AWS credentials not configured! Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.')
-}
-
-const s3 = new AWS.S3(s3Config);
 
 export async function GET(
   request: NextRequest,
@@ -71,16 +58,41 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action') || 'download';
 
-    // Generate presigned URL
-    const presignedUrl = await s3.getSignedUrlPromise('getObject', {
-      Bucket: document.s3Bucket,
-      Key: document.s3Key,
-      Expires: 3600, // 1 hour
-      ResponseContentDisposition: action === 'download' 
-        ? `attachment; filename="${document.fileName}"`
-        : `inline; filename="${document.fileName}"`,
-      ResponseContentType: document.mimeType,
-    });
+    // Use direct URL for local storage / Vercel Blob.
+    // Legacy AWS S3 records may be private and inaccessible without AWS credentials.
+    let fileUrl = document.s3Url || '';
+    if (!fileUrl && document.s3Bucket && document.s3Key) {
+      fileUrl = `https://${document.s3Bucket}.s3.amazonaws.com/${document.s3Key}`;
+    }
+
+    const isLocalOrBlobStorage =
+      document.s3Bucket === 'local-public' ||
+      document.s3Bucket === 'vercel-blob' ||
+      fileUrl.startsWith('/') ||
+      fileUrl.includes('blob.vercel-storage.com');
+
+    if (!isLocalOrBlobStorage) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'This file was uploaded using legacy AWS storage and is no longer accessible after storage migration. Please re-upload this document.',
+        },
+        { status: 410 }
+      );
+    }
+
+    if (fileUrl.startsWith('/')) {
+      const origin = new URL(request.url).origin;
+      fileUrl = `${origin}${fileUrl}`;
+    }
+
+    if (!fileUrl) {
+      return NextResponse.json(
+        { success: false, error: 'Document URL is not available' },
+        { status: 404 }
+      );
+    }
 
     // HIPAA Compliance: Log document access
     console.log(`[HIPAA] Document accessed - Patient: ${patient.id}, UUID: ${uuid}, Action: ${action}, File: ${document.fileName}`);
@@ -88,7 +100,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        url: presignedUrl,
+        url: fileUrl,
         fileName: document.fileName,
         mimeType: document.mimeType,
       },

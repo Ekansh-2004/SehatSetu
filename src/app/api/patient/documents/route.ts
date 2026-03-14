@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db/prisma';
-import AWS from 'aws-sdk';
-
-// AWS S3 Configuration
-const s3Config = {
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION,
-};
-
-const s3 = new AWS.S3(s3Config);
+import { put } from '@vercel/blob';
+import { mkdir, writeFile } from 'fs/promises';
+import path from 'path';
 
 export async function GET(request: NextRequest) {
   try {
@@ -94,8 +87,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { fileName, fileSize, mimeType, category = 'medical_record', description } = body;
+    const formData = await request.formData();
+    const file = formData.get('file');
+    const category = String(formData.get('category') || 'medical_record');
+    const descriptionValue = formData.get('description');
+    const description = typeof descriptionValue === 'string' ? descriptionValue : undefined;
+
+    const isFileLike =
+      !!file &&
+      typeof (file as Blob).arrayBuffer === 'function' &&
+      typeof (file as { name?: unknown }).name === 'string';
+
+    if (!isFileLike) {
+      return NextResponse.json(
+        { success: false, error: 'File is required' },
+        { status: 400 }
+      );
+    }
+
+    const uploadFile = file as File;
+    const fileName = uploadFile.name;
+    const fileSize = uploadFile.size;
+    const fileExtension = fileName.split('.').pop()?.toLowerCase();
+    const isDicomFile = fileExtension === 'dcm' || fileExtension === 'dicom';
+    const mimeType = uploadFile.type || (isDicomFile ? 'application/dicom' : 'application/octet-stream');
 
     // Validate required fields
     if (!fileName || !fileSize || !mimeType) {
@@ -118,9 +133,6 @@ export async function POST(request: NextRequest) {
       'application/octet-stream', 
     ];
 
-    const fileExt = fileName.split('.').pop()?.toLowerCase();
-    const isDicomFile = fileExt === 'dcm' || fileExt === 'dicom';
-
     if (!allowedTypes.includes(mimeType) && !isDicomFile) {
       return NextResponse.json(
         { success: false, error: `File type not allowed. Allowed types: PDF, JPEG, PNG, WEBP, TXT, DOC, DOCX, DICOM` },
@@ -136,18 +148,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const s3Bucket = process.env.AWS_S3_BUCKET || 'test-livconnect-1';
-    const fileExtension = fileName.split('.').pop();
+    const fileExt = fileName.split('.').pop();
     
     // Create file metadata record
     const fileMetadata = await prisma.fileMetadata.create({
       data: {
         fileName,
-        fileExtension: fileExtension || '',
+        fileExtension: fileExt || '',
         fileSize,
         mimeType,
         s3Key: '', // Will be updated after UUID generation
-        s3Bucket,
+        s3Bucket: 'pending',
         patientId: patient.id,
         category,
         description,
@@ -155,44 +166,58 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Generate S3 key
+    // Generate storage key
     const timestamp = Date.now();
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const s3Key = `patient-documents/${patient.id}/${fileMetadata.uuid}/${timestamp}-${sanitizedFileName}`;
-    const s3Url = `https://${s3Bucket}.s3.amazonaws.com/${s3Key}`;
+    const storageKey = `patient-documents/${patient.id}/${fileMetadata.uuid}/${timestamp}-${sanitizedFileName}`;
 
-    // Update metadata with S3 details
+    const buffer = Buffer.from(await uploadFile.arrayBuffer());
+    let storageBucket = 'local-public';
+    let storageUrl = '';
+    let storedKey = storageKey;
+
+    try {
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        try {
+          const blob = await put(storageKey, buffer, {
+            access: 'public',
+            contentType: mimeType,
+          });
+          storageBucket = 'vercel-blob';
+          storageUrl = blob.url;
+          storedKey = blob.pathname || storageKey;
+        } catch (blobError) {
+          console.warn('Blob upload failed, falling back to local storage:', blobError);
+          const localRelativePath = path.join('uploads', storageKey).replace(/\\/g, '/');
+          const localAbsolutePath = path.join(process.cwd(), 'public', localRelativePath);
+          await mkdir(path.dirname(localAbsolutePath), { recursive: true });
+          await writeFile(localAbsolutePath, buffer);
+          storageBucket = 'local-public';
+          storageUrl = `/${localRelativePath}`;
+          storedKey = localRelativePath;
+        }
+      } else {
+        const localRelativePath = path.join('uploads', storageKey).replace(/\\/g, '/');
+        const localAbsolutePath = path.join(process.cwd(), 'public', localRelativePath);
+        await mkdir(path.dirname(localAbsolutePath), { recursive: true });
+        await writeFile(localAbsolutePath, buffer);
+        storageUrl = `/${localRelativePath}`;
+        storedKey = localRelativePath;
+      }
+    } catch (uploadError) {
+      await prisma.fileMetadata.delete({ where: { id: fileMetadata.id } });
+      console.error('Storage upload failed:', uploadError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to upload file to storage' },
+        { status: 500 }
+      );
+    }
+
+    // Update metadata with storage details
     await prisma.fileMetadata.update({
       where: { id: fileMetadata.id },
-      data: { s3Key, s3Url },
+      data: { s3Key: storedKey, s3Bucket: storageBucket, s3Url: storageUrl },
     });
-
-    // Ensure AWS configuration is present
-    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
-      console.error('Missing AWS environment variables for S3 presigned URL generation');
-      return NextResponse.json({ success: false, error: 'Server misconfiguration: missing AWS credentials' }, { status: 500 });
-    }
-
-    // Generate presigned URL for upload
-    let presignedUploadUrl: string;
-    try {
-      presignedUploadUrl = await s3.getSignedUrlPromise('putObject', {
-        Bucket: s3Bucket,
-        Key: s3Key,
-        Expires: 3600, // 1 hour
-        ContentType: mimeType,
-        Metadata: {
-          'uuid': fileMetadata.uuid,
-          'patient-id': patient.id,
-          'original-filename': fileName,
-          'hipaa-compliant': 'true',
-        },
-      });
-    } catch (err) {
-      console.error('S3 getSignedUrlPromise error:', err);
-      const message = err instanceof Error ? err.message : String(err);
-      return NextResponse.json({ success: false, error: `Failed to generate upload URL: ${message}` }, { status: 500 });
-    }
 
     // HIPAA Compliance: Log document upload initiation
     console.log(`[HIPAA] Document upload initiated - Patient: ${patient.id}, UUID: ${fileMetadata.uuid}, File: ${fileName}`);
@@ -201,11 +226,11 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         uuid: fileMetadata.uuid,
-        presignedUrl: presignedUploadUrl,
-        s3Key,
-        expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
+        s3Key: storedKey,
+        s3Url: storageUrl,
+        storageBucket,
       },
-      message: 'Upload URL generated successfully',
+      message: 'Document uploaded successfully',
     });
   } catch (error) {
     console.error('Error creating document upload:', error);

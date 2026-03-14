@@ -79,8 +79,40 @@ model Patient {
   fileMetadata                 FileMetadata[]
   formSubmissions              PatientFormSubmission[]
   sessionAnalytics             SessionAnalytics[]
+  patientRequests              PatientRequest[]
+  chatSessions                 ChatSession[]
 
   @@map("patients")
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  patientId String
+  title     String        @default("New chat")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  patient   Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@index([patientId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id                String      @id @default(cuid())
+  sessionId         String
+  sender            String
+  text              String      @db.Text
+  emergency         Boolean     @default(false)
+  symptoms          Json?
+  possible_diseases Json?
+  recommendations   Json?
+  follow_up_questions Json?
+  createdAt         DateTime    @default(now())
+  session           ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("chat_messages")
 }
 
 model Appointment {
@@ -306,4 +338,25 @@ model StaffTask {
   @@index([status])
   @@index([createdAt])
   @@map("staff_tasks")
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  RESOLVED
+}
+
+model PatientRequest {
+  id         String        @id @default(cuid())
+  patientId  String
+  patient    Patient       @relation(fields: [patientId], references: [id])
+  summary    String        @db.Text
+  transcript String?       @db.Text
+  status     RequestStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+
+  @@index([patientId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("patient_requests")
 }

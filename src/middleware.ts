@@ -22,8 +22,12 @@ const isDoctorRoute = (req: NextRequest) => {
 }
 
 export default clerkMiddleware(async (auth, req) => {
-  // Allow WhatsApp webhook without authentication
-  if (req.nextUrl.pathname.startsWith('/api/whatsapp-webhook')) {
+  // Allow WhatsApp webhook and patient-requests API without authentication
+  // (called externally by the Twilio+AI backend)
+  if (
+    req.nextUrl.pathname.startsWith('/api/whatsapp-webhook') ||
+    req.nextUrl.pathname.startsWith('/api/patient-requests')
+  ) {
     return NextResponse.next()
   }
   

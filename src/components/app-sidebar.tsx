@@ -14,6 +14,7 @@ import {
   Search,
   Scan,
   Shield,
+  PhoneIncoming,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -63,16 +64,12 @@ const data = {
       url: "/doctor/dashboard/patients",
       icon: Users,
       iconClass: "sidebar-icon-patients",
-      // items: [
-      //   {
-      //     title: "All Patients",
-      //     url: "/doctor/dashboard/patients",
-      //   },
-      //   {
-      //     title: "Patient Records",
-      //     url: "/doctor/dashboard/patients/records",
-      //   },
-      // ],
+    },
+    {
+      title: "Call Requests",
+      url: "/doctor/dashboard/patient-requests",
+      icon: PhoneIncoming,
+      iconClass: "sidebar-icon-requests",
     },
     {
       title: "Appointments",

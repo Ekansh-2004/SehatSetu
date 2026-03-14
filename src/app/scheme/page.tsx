@@ -145,6 +145,26 @@ const roleConfig = {
   },
 };
 
+type EligibilityFormState = "Rajasthan" | "Other";
+type EligibilityEmployment = "Govt Employee" | "Pensioner" | "Private" | "Other";
+type EligibilityIncome = "Below 2.5L" | "2.5L-5L" | "Above 5L";
+
+type EligibilityResult = {
+  name: string;
+  shortName: string;
+  eligible: boolean;
+  coverage: string;
+  coverageDesc: string;
+  helpline: string;
+  reason?: string;
+  details?: {
+    officialWebsite: string;
+    applyAt: string;
+    documentsNeeded: string[];
+    notes: string;
+  };
+};
+
 type SchemeType = {
   id: number;
   title: string;
@@ -180,7 +200,79 @@ function SchemeContent() {
   const [speakingSchemeId, setSpeakingSchemeId] = useState<number | null>(null);
   const recognitionRef = useRef<any>(null);
 
+  // Eligibility checker state
+  const [eligState, setEligState] = useState<EligibilityFormState>("Rajasthan");
+  const [eligEmployment, setEligEmployment] = useState<EligibilityEmployment>("Govt Employee");
+  const [eligIncome, setEligIncome] = useState<EligibilityIncome>("Below 2.5L");
+  const [eligBPL, setEligBPL] = useState(false);
+  const [eligibilityResults, setEligibilityResults] = useState<EligibilityResult[] | null>(null);
+  const [eligibilityLoading, setEligibilityLoading] = useState(false);
+  const [expandedEligibilityCard, setExpandedEligibilityCard] = useState<Record<string, boolean>>({});
+  const [speakingEligibilityId, setSpeakingEligibilityId] = useState<string | null>(null);
+
   const copy = localizedUi[outputLanguage];
+  const eligibilityUi = {
+    eligible:
+      outputLanguage === "hi-IN"
+        ? "पात्र"
+        : outputLanguage === "mr-IN"
+          ? "पात्र"
+          : outputLanguage === "ta-IN"
+            ? "தகுதி"
+            : outputLanguage === "te-IN"
+              ? "అర్హులు"
+              : "Eligible",
+    notEligible:
+      outputLanguage === "hi-IN"
+        ? "अपात्र"
+        : outputLanguage === "mr-IN"
+          ? "अपात्र"
+          : outputLanguage === "ta-IN"
+            ? "தகுதி இல்லை"
+            : outputLanguage === "te-IN"
+              ? "అర్హులు కాదు"
+              : "Not Eligible",
+    helpline:
+      outputLanguage === "hi-IN"
+        ? "हेल्पलाइन"
+        : outputLanguage === "mr-IN"
+          ? "हेल्पलाइन"
+          : outputLanguage === "ta-IN"
+            ? "உதவி எண்"
+            : outputLanguage === "te-IN"
+              ? "హెల్ప్‌లైన్"
+              : "Helpline",
+    documents:
+      outputLanguage === "hi-IN"
+        ? "आवश्यक दस्तावेज"
+        : outputLanguage === "mr-IN"
+          ? "आवश्यक कागदपत्रे"
+          : outputLanguage === "ta-IN"
+            ? "தேவையான ஆவணங்கள்"
+            : outputLanguage === "te-IN"
+              ? "అవసరమైన పత్రాలు"
+              : "Documents Needed",
+    applyAt:
+      outputLanguage === "hi-IN"
+        ? "कहां आवेदन करें"
+        : outputLanguage === "mr-IN"
+          ? "अर्ज कुठे करावा"
+          : outputLanguage === "ta-IN"
+            ? "எங்கு விண்ணப்பிப்பது"
+            : outputLanguage === "te-IN"
+              ? "ఎక్కడ దరఖాస్తు చేయాలి"
+              : "Apply At",
+    notes:
+      outputLanguage === "hi-IN"
+        ? "नोट्स"
+        : outputLanguage === "mr-IN"
+          ? "टीप"
+          : outputLanguage === "ta-IN"
+            ? "குறிப்புகள்"
+            : outputLanguage === "te-IN"
+              ? "గమనికలు"
+              : "Notes",
+  };
 
   useEffect(() => {
     const fetchSchemes = async () => {
@@ -345,6 +437,7 @@ function SchemeContent() {
     }
 
     window.speechSynthesis.cancel();
+    setSpeakingEligibilityId(null);
     const utterance = new SpeechSynthesisUtterance(getNarrationText(scheme));
     utterance.lang = outputLanguage;
     utterance.rate = 0.95;
@@ -356,6 +449,99 @@ function SchemeContent() {
 
   const searchSchemeOnGoogle = (scheme: SchemeType) => {
     const googleQuery = scheme.googleQuery || `${scheme.title} scheme eligibility official`;
+    const url = `https://www.google.com/search?q=${encodeURIComponent(googleQuery)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const checkEligibility = async () => {
+    setEligibilityLoading(true);
+    try {
+      const res = await fetch("/api/schemes/eligibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          state: eligState,
+          employment: eligEmployment,
+          income: eligIncome,
+          hasBPLCard: eligBPL,
+        }),
+      });
+      if (!res.ok) throw new Error(`Eligibility API returned ${res.status}`);
+      const data = await res.json();
+      setEligibilityResults(Array.isArray(data.results) ? data.results : []);
+    } catch (err) {
+      console.error("Eligibility check failed:", err);
+      setEligibilityResults([]);
+    } finally {
+      setEligibilityLoading(false);
+    }
+  };
+
+  const translateEligibilityReason = (reason?: string) => {
+    if (!reason) return undefined;
+    if (outputLanguage === "hi-IN") {
+      if (reason.includes("Rajasthan govt employees")) return "केवल राजस्थान के सरकारी कर्मचारियों और पेंशनरों के लिए";
+      if (reason.includes("low-income or BPL")) return "केवल कम आय या BPL कार्ड धारकों के लिए";
+      if (reason.includes("Rajasthan residents")) return "केवल राजस्थान निवासियों के लिए, जिनकी आय कम है या BPL कार्ड है";
+    }
+    if (outputLanguage === "mr-IN") {
+      if (reason.includes("Rajasthan govt employees")) return "फक्त राजस्थान सरकारी कर्मचारी आणि निवृत्तीवेतनधारकांसाठी";
+      if (reason.includes("low-income or BPL")) return "फक्त कमी उत्पन्न किंवा BPL कार्डधारकांसाठी";
+      if (reason.includes("Rajasthan residents")) return "फक्त राजस्थान रहिवाशांसाठी, कमी उत्पन्न किंवा BPL कार्ड आवश्यक";
+    }
+    if (outputLanguage === "ta-IN") {
+      if (reason.includes("Rajasthan govt employees")) return "ராஜஸ்தான் அரசு ஊழியர்கள் மற்றும் ஓய்வூதியதாரர்களுக்கே";
+      if (reason.includes("low-income or BPL")) return "குறைந்த வருமானம் அல்லது BPL அட்டை உள்ளவர்களுக்கு மட்டும்";
+      if (reason.includes("Rajasthan residents")) return "ராஜஸ்தான் குடியிருப்பாளர்களுக்கு மட்டும்; குறைந்த வருமானம் அல்லது BPL அட்டை தேவை";
+    }
+    if (outputLanguage === "te-IN") {
+      if (reason.includes("Rajasthan govt employees")) return "రాజస్థాన్ ప్రభుత్వ ఉద్యోగులు మరియు పెన్షనర్లకు మాత్రమే";
+      if (reason.includes("low-income or BPL")) return "తక్కువ ఆదాయం లేదా BPL కార్డు ఉన్నవారికి మాత్రమే";
+      if (reason.includes("Rajasthan residents")) return "రాజస్థాన్ నివాసితులకు మాత్రమే; తక్కువ ఆదాయం లేదా BPL కార్డు అవసరం";
+    }
+    return reason;
+  };
+
+  const getEligibilityNarrationText = (result: EligibilityResult) => {
+    const status = result.eligible ? "Eligible" : "Not eligible";
+    const reason = result.eligible ? "" : ` Reason: ${translateEligibilityReason(result.reason) || result.reason}.`;
+    if (outputLanguage === "hi-IN") {
+      return `${result.shortName}. स्थिति: ${result.eligible ? "पात्र" : "अपात्र"}. कवरेज: ${result.coverage}. विवरण: ${result.coverageDesc}. हेल्पलाइन: ${result.helpline}.${reason}`;
+    }
+    if (outputLanguage === "mr-IN") {
+      return `${result.shortName}. स्थिती: ${result.eligible ? "पात्र" : "अपात्र"}. संरक्षण: ${result.coverage}. माहिती: ${result.coverageDesc}. हेल्पलाइन: ${result.helpline}.${reason}`;
+    }
+    if (outputLanguage === "ta-IN") {
+      return `${result.shortName}. நிலை: ${result.eligible ? "தகுதி" : "தகுதி இல்லை"}. கவரேஜ்: ${result.coverage}. விவரம்: ${result.coverageDesc}. உதவி எண்: ${result.helpline}.${reason}`;
+    }
+    if (outputLanguage === "te-IN") {
+      return `${result.shortName}. స్థితి: ${result.eligible ? "అర్హులు" : "అర్హులు కాదు"}. కవరేజ్: ${result.coverage}. వివరాలు: ${result.coverageDesc}. హెల్ప్‌లైన్: ${result.helpline}.${reason}`;
+    }
+    return `${result.shortName}. Status: ${status}. Coverage: ${result.coverage}. ${result.coverageDesc}. Helpline: ${result.helpline}.${reason}`;
+  };
+
+  const speakEligibilityResult = (result: EligibilityResult) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+    if (speakingEligibilityId === result.shortName) {
+      window.speechSynthesis.cancel();
+      setSpeakingEligibilityId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    setSpeakingSchemeId(null);
+    const utterance = new SpeechSynthesisUtterance(getEligibilityNarrationText(result));
+    utterance.lang = outputLanguage;
+    utterance.rate = 0.95;
+    utterance.onend = () => setSpeakingEligibilityId(null);
+    utterance.onerror = () => setSpeakingEligibilityId(null);
+    setSpeakingEligibilityId(result.shortName);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const searchEligibilityOnGoogle = (result: EligibilityResult) => {
+    const googleQuery = `${result.name} eligibility coverage apply official website`;
     const url = `https://www.google.com/search?q=${encodeURIComponent(googleQuery)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
@@ -411,6 +597,185 @@ function SchemeContent() {
               </Link>
             ))}
           </div>
+        </div>
+
+        {/* Check Your Eligibility Section */}
+        <div className="mb-10 rounded-2xl p-6 sm:p-8" style={{ backgroundColor: "#f0f4ff" }}>
+          <h2 className="text-2xl font-bold text-slate-800 mb-1">Check Your Eligibility</h2>
+          <p className="text-sm text-slate-500 mb-6">Answer 4 quick questions to see which schemes apply to you</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <label className="block text-sm font-medium text-slate-700 mb-2">State</label>
+              <select
+                value={eligState}
+                onChange={(e) => setEligState(e.target.value as EligibilityFormState)}
+                className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="Rajasthan">Rajasthan</option>
+                <option value="Other">Other State</option>
+              </select>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Employment Type</label>
+              <select
+                value={eligEmployment}
+                onChange={(e) => setEligEmployment(e.target.value as EligibilityEmployment)}
+                className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="Govt Employee">Govt Employee</option>
+                <option value="Pensioner">Pensioner</option>
+                <option value="Private">Private Sector</option>
+                <option value="Other">Other / Unemployed</option>
+              </select>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Annual Income</label>
+              <select
+                value={eligIncome}
+                onChange={(e) => setEligIncome(e.target.value as EligibilityIncome)}
+                className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="Below 2.5L">Below ₹2.5 Lakh</option>
+                <option value="2.5L-5L">₹2.5L – ₹5 Lakh</option>
+                <option value="Above 5L">Above ₹5 Lakh</option>
+              </select>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 shadow-sm flex flex-col justify-between gap-3">
+              <label className="text-sm font-medium text-slate-700">Do you have a BPL / Ration Card?</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEligBPL(false)}
+                  className="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
+                  style={!eligBPL ? { backgroundColor: "#4a7fff", color: "#fff" } : { backgroundColor: "#f1f5f9", color: "#64748b" }}
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEligBPL(true)}
+                  className="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
+                  style={eligBPL ? { backgroundColor: "#4a7fff", color: "#fff" } : { backgroundColor: "#f1f5f9", color: "#64748b" }}
+                >
+                  Yes
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void checkEligibility()}
+            disabled={eligibilityLoading}
+            className="px-8 py-3 rounded-xl text-white font-semibold text-base shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+            style={{ background: "linear-gradient(135deg, #4a7fff 0%, #6fa8ff 100%)" }}
+          >
+            {eligibilityLoading ? "Checking..." : "Check Eligibility"}
+          </button>
+
+          {eligibilityResults && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
+              {eligibilityResults.map((result, i) => (
+                <motion.div
+                  key={result.shortName}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1, duration: 0.4 }}
+                  className="bg-white rounded-2xl p-5 shadow-sm border"
+                  style={{ borderColor: result.eligible ? "#bbf7d0" : "#e2e8f0" }}
+                >
+                  <div className="flex items-start justify-between mb-3 gap-2">
+                    <div className="min-w-0">
+                      <span className="font-bold text-slate-800 text-base">{result.shortName}</span>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-snug">{result.name}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span
+                        className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full"
+                        style={
+                          result.eligible
+                            ? { backgroundColor: "#dcfce7", color: "#16a34a" }
+                            : { backgroundColor: "#f1f5f9", color: "#64748b" }
+                        }
+                      >
+                        {result.eligible ? eligibilityUi.eligible : eligibilityUi.notEligible}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => speakEligibilityResult(result)}
+                        title={copy.narration}
+                      >
+                        {speakingEligibilityId === result.shortName ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-sm font-bold mb-0.5" style={{ color: "#4a7fff" }}>{result.coverage}</p>
+                  <p className="text-xs text-slate-600 mb-3 leading-relaxed">{result.coverageDesc}</p>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-slate-500 font-medium">{eligibilityUi.helpline}:</span>
+                    <span className="font-mono font-semibold text-slate-700">{result.helpline}</span>
+                  </div>
+                  {!result.eligible && result.reason && (
+                    <p className="text-xs text-slate-400 mt-2 italic">{translateEligibilityReason(result.reason)}</p>
+                  )}
+
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full justify-between border border-slate-200 h-9"
+                      onClick={() =>
+                        setExpandedEligibilityCard((prev) => ({
+                          ...prev,
+                          [result.shortName]: !prev[result.shortName],
+                        }))
+                      }
+                    >
+                      <span>{expandedEligibilityCard[result.shortName] ? copy.hideDetails : copy.details}</span>
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${
+                          expandedEligibilityCard[result.shortName] ? "rotate-180" : ""
+                        }`}
+                      />
+                    </Button>
+
+                    {expandedEligibilityCard[result.shortName] && result.details ? (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-700">{eligibilityUi.applyAt}</p>
+                          <p className="text-xs text-slate-600 mt-0.5">{result.details.applyAt}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-700">{eligibilityUi.documents}</p>
+                          <p className="text-xs text-slate-600 mt-0.5">{result.details.documentsNeeded.join(", ")}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-700">{eligibilityUi.notes}</p>
+                          <p className="text-xs text-slate-600 mt-0.5">{result.details.notes}</p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <Button
+                      type="button"
+                      className="w-full h-9 bg-slate-900 hover:bg-slate-800 text-white"
+                      onClick={() => searchEligibilityOnGoogle(result)}
+                    >
+                      {copy.googleSearch}
+                      <ExternalLink className="h-3.5 w-3.5 ml-2" />
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
 
         <Card className="mb-10 border-slate-200 shadow-sm">

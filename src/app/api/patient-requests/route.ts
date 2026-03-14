@@ -24,15 +24,20 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Look up the patient by phone number ─────────────────────────────
-    const patient = await prisma.patient.findUnique({
+    let patient = await prisma.patient.findUnique({
       where: { phone },
     });
 
+    // If no patient exists with this phone, create one automatically
     if (!patient) {
-      return NextResponse.json(
-        { success: false, error: `No patient found with phone number: ${phone}` },
-        { status: 404 }
-      );
+      patient = await prisma.patient.create({
+        data: {
+          phone,
+          name: body.name || `Patient (${phone})`,
+          email: body.email || `${phone}@auto.sehatsetu.in`,
+          type: "call",
+        },
+      });
     }
 
     // ── Create the patient request ──────────────────────────────────────

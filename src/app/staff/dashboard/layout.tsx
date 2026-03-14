@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { UserButton } from "@clerk/nextjs";
 import { Logo } from "@/components/ui/logo";
 import Link from "next/link";
-import { Users, Calendar, LayoutDashboard, Shield } from "lucide-react";
+import { Users, Calendar, LayoutDashboard, Shield, MessageCircle } from "lucide-react";
 
 export default function StaffDashboardLayout({
   children,
@@ -96,6 +96,13 @@ export default function StaffDashboardLayout({
                 >
                   <Calendar className="h-4 w-4" />
                   Appointments
+                </Link>
+                <Link
+                  href="/staff/dashboard/chat"
+                  className="flex items-center gap-2 text-gray-700 hover:text-purple-600 transition-colors"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Chat
                 </Link>
                 <Link
                   href="/scheme?role=staff"

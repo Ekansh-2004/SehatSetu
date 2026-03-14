@@ -27,9 +27,9 @@ interface Chat {
 }
 
 // ── Config ─────────────────────────────────────────────────────────────── //
-const STORAGE_KEY  = "patient_chat_sessions";
+const STORAGE_KEY  = "doctor_chat_sessions";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-const DOMAIN       = "medical"; // change to "nursing" for the staff portal
+const DOMAIN       = "medical";
 
 // ── Helpers ────────────────────────────────────────────────────────────── //
 function nowISO() { return new Date().toISOString(); }
@@ -69,7 +69,7 @@ function formatAssistantText(data: {
 }
 
 // ── Main component ─────────────────────────────────────────────────────── //
-export default function PatientChatPage() {
+export default function DoctorChatPage() {
   const [chats, setChats]               = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [input, setInput]               = useState("");
@@ -193,8 +193,8 @@ export default function PatientChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id:    userId,
-          session_id: chat!.id,   // use the chat id as the session id
-          role:       "patient",
+          session_id: chat!.id,
+          role:       "doctor",
           message:    sentText,
           domain:     DOMAIN,
         }),
@@ -284,7 +284,7 @@ export default function PatientChatPage() {
               key={c.id}
               className={`p-2 rounded-md cursor-pointer flex items-center justify-between ${
                 c.id === activeChatId
-                  ? "bg-emerald-50 border border-emerald-100"
+                  ? "bg-blue-50 border border-blue-100"
                   : "hover:bg-gray-50"
               }`}
               onClick={() => setActiveChatId(c.id)}
@@ -342,7 +342,7 @@ export default function PatientChatPage() {
                   <div
                     className={`inline-block px-4 py-2 rounded whitespace-pre-wrap text-left ${
                       m.sender === "user"
-                        ? "bg-emerald-600 text-white"
+                        ? "bg-blue-600 text-white"
                         : m.emergency
                         ? "bg-red-50 border border-red-200 text-gray-800"
                         : "bg-gray-100 text-gray-800"
@@ -364,7 +364,7 @@ export default function PatientChatPage() {
         <div className="pt-2 border-t">
           <div className="flex gap-2">
             <Input
-              placeholder="Describe your symptoms or ask a question..."
+              placeholder="Ask a clinical question or discuss a case..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -378,7 +378,7 @@ export default function PatientChatPage() {
             <Button
               onClick={send}
               disabled={loading}
-              className="bg-violet-600 text-white"
+              className="bg-blue-600 text-white"
             >
               {loading ? "Sending..." : "Send"}
             </Button>

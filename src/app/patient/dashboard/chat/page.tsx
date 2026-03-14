@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ interface Message {
   id: string;
   sender: "user" | "assistant";
   text: string;
-  time: string;
+  createdAt: string;
   emergency?: boolean;
   symptoms?: string[];
   possible_diseases?: { name: string; confidence: number }[];
@@ -27,9 +27,8 @@ interface Chat {
 }
 
 // ── Config ─────────────────────────────────────────────────────────────── //
-const STORAGE_KEY  = "patient_chat_sessions";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-const DOMAIN       = "medical"; // change to "nursing" for the staff portal
+const DOMAIN       = "medical";
 
 // ── Helpers ────────────────────────────────────────────────────────────── //
 function nowISO() { return new Date().toISOString(); }
@@ -68,15 +67,91 @@ function formatAssistantText(data: {
   return parts.join("\n").trim() || "I could not generate a response. Please try again.";
 }
 
+// ── Fire-and-forget DB helper (never blocks UI) ─────────────────────── //
+async function dbSaveMessage(
+  sessionId: string,
+  msg: {
+    sender: string;
+    text: string;
+    emergency?: boolean;
+    symptoms?: string[];
+    possible_diseases?: { name: string; confidence: number }[];
+    recommendations?: string[];
+    follow_up_questions?: string[];
+  }
+) {
+  try {
+    const res = await fetch("/api/chat/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, ...msg }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error("dbSaveMessage failed:", res.status, err);
+    }
+  } catch (e) {
+    console.error("dbSaveMessage network error:", e);
+  }
+}
+
+async function dbCreateSession(title: string): Promise<string | null> {
+  try {
+    const res = await fetch("/api/chat/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      console.error("dbCreateSession failed:", res.status, data);
+      return null;
+    }
+    return data.session.id;
+  } catch (e) {
+    console.error("dbCreateSession network error:", e);
+    return null;
+  }
+}
+
+async function dbRenameSession(id: string, title: string) {
+  try {
+    const res = await fetch(`/api/chat/conversations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error("dbRenameSession failed:", res.status, err);
+    }
+  } catch (e) {
+    console.error("dbRenameSession network error:", e);
+  }
+}
+
+async function dbDeleteSession(id: string) {
+  try {
+    const res = await fetch(`/api/chat/conversations/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error("dbDeleteSession failed:", res.status, err);
+    }
+  } catch (e) {
+    console.error("dbDeleteSession network error:", e);
+  }
+}
+
 // ── Main component ─────────────────────────────────────────────────────── //
 export default function PatientChatPage() {
   const [chats, setChats]               = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [input, setInput]               = useState("");
   const [loading, setLoading]           = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const endRef = useRef<HTMLDivElement | null>(null);
 
-  // Persist a stable user_id in localStorage so the backend can track history
+  // Persist a stable user_id in localStorage so the FastAPI backend can track history
   const [userId] = useState<string>(() => {
     if (typeof window === "undefined") return uuidv4();
     const stored = localStorage.getItem("chat_user_id");
@@ -86,24 +161,39 @@ export default function PatientChatPage() {
     return id;
   });
 
-  // ── Load chats from localStorage ──────────────────────────────────────
-  useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        setChats(parsed || []);
-        if (parsed?.length) setActiveChatId(parsed[0].id);
-      } catch (e) {
-        console.error(e);
+  // ── Load chats from database on mount ─────────────────────────────────
+  const loadChats = useCallback(async () => {
+    try {
+      const res = await fetch("/api/chat/conversations");
+      const data = await res.json();
+      if (data.success && data.sessions) {
+        const mapped: Chat[] = data.sessions.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          createdAt: s.createdAt,
+          messages: s.messages.map((m: any) => ({
+            id: m.id,
+            sender: m.sender,
+            text: m.text,
+            createdAt: m.createdAt,
+            emergency: m.emergency,
+            symptoms: m.symptoms,
+            possible_diseases: m.possible_diseases,
+            recommendations: m.recommendations,
+            follow_up_questions: m.follow_up_questions,
+          })),
+        }));
+        setChats(mapped);
+        if (mapped.length) setActiveChatId(mapped[0].id);
       }
+    } catch (e) {
+      console.error("Failed to load chats:", e);
+    } finally {
+      setInitialLoading(false);
     }
   }, []);
 
-  // ── Persist chats to localStorage ─────────────────────────────────────
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
-  }, [chats]);
+  useEffect(() => { loadChats(); }, [loadChats]);
 
   // ── Scroll to bottom on new messages ──────────────────────────────────
   useEffect(() => {
@@ -113,74 +203,97 @@ export default function PatientChatPage() {
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
 
   // ── Create new chat ────────────────────────────────────────────────────
-  const createChat = () => {
-    const c: Chat = {
-      id: uuidv4(),
-      title: `New chat ${chats.length + 1}`,
-      messages: [],
-      createdAt: nowISO(),
-    };
+  const createChat = async () => {
+    // Immediately create local chat so UI is responsive
+    const tempId = uuidv4();
+    const title = `New chat ${chats.length + 1}`;
+    const c: Chat = { id: tempId, title, messages: [], createdAt: nowISO() };
     setChats((prev) => [c, ...prev]);
-    setActiveChatId(c.id);
+    setActiveChatId(tempId);
+
+    // Persist to DB in background; if successful, swap temp id for real id
+    const dbId = await dbCreateSession(title);
+    if (dbId) {
+      setChats((prev) =>
+        prev.map((ch) => (ch.id === tempId ? { ...ch, id: dbId } : ch))
+      );
+      setActiveChatId(dbId);
+    }
   };
 
-  // ── Delete / rename ────────────────────────────────────────────────────
+  // ── Delete ─────────────────────────────────────────────────────────────
   const removeChat = (id: string) => {
     const filtered = chats.filter((c) => c.id !== id);
     setChats(filtered);
     if (activeChatId === id) setActiveChatId(filtered[0]?.id || null);
+    dbDeleteSession(id); // fire-and-forget
   };
 
+  // ── Rename ─────────────────────────────────────────────────────────────
   const renameChat = (id: string) => {
     const newTitle = prompt("New chat title");
     if (!newTitle) return;
-    setChats((prev) => prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c)));
+    setChats((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c))
+    );
+    dbRenameSession(id, newTitle); // fire-and-forget
   };
 
   // ── Send message ───────────────────────────────────────────────────────
   const send = async () => {
     if (!input.trim() || loading) return;
 
-    // Ensure there's an active chat
-    let chat = activeChat;
-    if (!chat) {
-      const newChat: Chat = {
-        id: uuidv4(),
-        title: `New chat ${chats.length + 1}`,
-        messages: [],
-        createdAt: nowISO(),
-      };
-      setChats((prev) => [newChat, ...prev]);
-      setActiveChatId(newChat.id);
-      chat = newChat;
-    }
-
-    // Add user message immediately
-    const userMsg: Message = {
-      id: uuidv4(),
-      sender: "user",
-      text: input.trim(),
-      time: nowISO(),
-    };
-    setChats((prev) =>
-      prev.map((c) =>
-        c.id === chat!.id ? { ...c, messages: [...c.messages, userMsg] } : c
-      )
-    );
     const sentText = input.trim();
     setInput("");
 
+    // Ensure there's an active chat — await DB creation so we have the real ID
+    let chatId = activeChatId;
+    if (!chatId) {
+      const tempId = uuidv4();
+      const title = `New chat ${chats.length + 1}`;
+      const c: Chat = { id: tempId, title, messages: [], createdAt: nowISO() };
+      setChats((prev) => [c, ...prev]);
+      setActiveChatId(tempId);
+      chatId = tempId;
+
+      // Await DB creation so we get the real ID for message saves
+      const dbId = await dbCreateSession(title);
+      if (dbId) {
+        chatId = dbId;
+        setChats((prev) =>
+          prev.map((ch) => (ch.id === tempId ? { ...ch, id: dbId } : ch))
+        );
+        setActiveChatId(dbId);
+      }
+    }
+
+    // Add user message to UI immediately
+    const userMsg: Message = {
+      id: uuidv4(),
+      sender: "user",
+      text: sentText,
+      createdAt: nowISO(),
+    };
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === chatId ? { ...c, messages: [...c.messages, userMsg] } : c
+      )
+    );
+
+    // Save user message to DB (chatId is now the real DB id)
+    dbSaveMessage(chatId, { sender: "user", text: sentText });
+
     // Add loading placeholder
-    const placeholderId = uuidv4();
+    const placeholderId = "placeholder-" + uuidv4();
     const placeholder: Message = {
       id: placeholderId,
       sender: "assistant",
       text: "Thinking...",
-      time: nowISO(),
+      createdAt: nowISO(),
     };
     setChats((prev) =>
       prev.map((c) =>
-        c.id === chat!.id ? { ...c, messages: [...c.messages, placeholder] } : c
+        c.id === chatId ? { ...c, messages: [...c.messages, placeholder] } : c
       )
     );
 
@@ -193,7 +306,7 @@ export default function PatientChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id:    userId,
-          session_id: chat!.id,   // use the chat id as the session id
+          session_id: chatId,
           message:    sentText,
           domain:     DOMAIN,
         }),
@@ -204,25 +317,45 @@ export default function PatientChatPage() {
       }
 
       const data = await response.json();
+      const assistantText = formatAssistantText(data);
 
       // Auto-rename chat from the first user message
-      const isFirstMessage = chat!.messages.length === 0;
-      const newTitle = isFirstMessage
-        ? sentText.slice(0, 40) + (sentText.length > 40 ? "…" : "")
-        : undefined;
+      setChats((prev) => {
+        const chat = prev.find((c) => c.id === chatId);
+        const isFirstMessage = chat && chat.messages.filter(m => m.sender === "user").length <= 1;
+        if (isFirstMessage) {
+          const newTitle = sentText.slice(0, 40) + (sentText.length > 40 ? "…" : "");
+          dbRenameSession(chatId!, newTitle);
+          return prev.map((c) =>
+            c.id === chatId ? { ...c, title: newTitle } : c
+          );
+        }
+        return prev;
+      });
+
+      // Save assistant message to DB (chatId is the real DB id)
+      dbSaveMessage(chatId, {
+        sender: "assistant",
+        text: assistantText,
+        emergency: data.emergency || false,
+        symptoms: data.symptoms || [],
+        possible_diseases: data.possible_diseases || [],
+        recommendations: data.recommendations || [],
+        follow_up_questions: data.follow_up_questions || [],
+      });
 
       // Replace placeholder with real response
       setChats((prev) =>
         prev.map((c) => {
-          if (c.id !== chat!.id) return c;
+          if (c.id !== chatId) return c;
           return {
             ...c,
-            title: newTitle || c.title,
             messages: c.messages.map((m) =>
               m.id === placeholderId
                 ? {
                     ...m,
-                    text: formatAssistantText(data),
+                    id: uuidv4(),
+                    text: assistantText,
                     emergency:          data.emergency         || false,
                     symptoms:           data.symptoms          || [],
                     possible_diseases:  data.possible_diseases || [],
@@ -239,7 +372,7 @@ export default function PatientChatPage() {
       // Replace placeholder with error message
       setChats((prev) =>
         prev.map((c) => {
-          if (c.id !== chat!.id) return c;
+          if (c.id !== chatId) return c;
           return {
             ...c,
             messages: c.messages.map((m) =>
@@ -259,6 +392,14 @@ export default function PatientChatPage() {
   };
 
   // ── Render ─────────────────────────────────────────────────────────────
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center h-[80vh]">
+        <div className="text-gray-500">Loading chats...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex gap-6">
       {/* ── Sidebar ────────────────────────────────────────────────────── */}
@@ -350,7 +491,7 @@ export default function PatientChatPage() {
                     {m.text}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
-                    {new Date(m.time).toLocaleString()}
+                    {new Date(m.createdAt).toLocaleString()}
                   </div>
                 </div>
               ))}

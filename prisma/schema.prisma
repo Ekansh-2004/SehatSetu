@@ -76,6 +76,7 @@ model Patient {
   consentToAlerts              Boolean                 @default(false)
   password                     String?
   appointments                 Appointment[]
+  chatSessions                 ChatSession[]
   fileMetadata                 FileMetadata[]
   formSubmissions              PatientFormSubmission[]
   sessionAnalytics             SessionAnalytics[]

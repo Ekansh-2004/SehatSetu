@@ -285,3 +285,25 @@ model SlotOffer {
   @@index([doctorId])
   @@map("slot_offers")
 }
+
+model StaffTask {
+  id             String    @id @default(cuid())
+  patientName    String
+  roomBed        String
+  taskType       String
+  details        String?   @db.Text
+  priority       String    @default("normal")
+  assignedToId   String?
+  assignedToName String
+  notes          String?   @db.Text
+  status         String    @default("pending")
+  completedAt    DateTime?
+  createdByName  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([assignedToId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("staff_tasks")
+}

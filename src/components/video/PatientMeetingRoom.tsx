@@ -29,6 +29,7 @@ import {
   Minimize2,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { VideoTrackView, AudioTrackView } from "./TrackViews";
 
 interface PatientMeetingRoomProps {
   room: Room;
@@ -74,8 +75,6 @@ export default function PatientMeetingRoom({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [showDebug, setShowDebug] = useState(false);
 
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
 
   const isIgnorableDisconnectError = useCallback((error: unknown) => {
@@ -107,10 +106,7 @@ export default function PatientMeetingRoom({
         });
         setLocalStream(stream);
 
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-          console.log("🎥 Local stream attached to video element");
-        }
+        setLocalStream(stream);
       } catch (error) {
         console.error("Failed to get local media:", error);
       }
@@ -198,81 +194,10 @@ export default function PatientMeetingRoom({
       RoomEvent.ParticipantDisconnected,
       (participant: RemoteParticipant) => {
         console.log("👤 Participant disconnected:", participant.identity);
-        cleanupParticipantAudio(participant.sid);
         updateParticipants();
       }
     );
 
-    room.on(
-      RoomEvent.TrackSubscribed,
-      (
-        track: RemoteTrack,
-        publication: RemoteTrackPublication,
-        participant: RemoteParticipant
-      ) => {
-        console.log(
-          "🎬 Track subscribed:",
-          track.kind,
-          "from",
-          participant.identity
-        );
-
-        // Ensure video tracks are subscribed
-        if (track.kind === Track.Kind.Video) {
-          publication.setSubscribed(true);
-          console.log("🎬 Video track subscription confirmed");
-
-          // Try to attach to existing video element
-          const videoElement = remoteVideoRefs.current.get(participant.sid);
-          if (videoElement) {
-            console.log(
-              `🎥 Found existing video element for ${participant.identity}, attaching track`
-            );
-            try {
-              track.attach(videoElement);
-            } catch (error) {
-              console.error(
-                `🎥 Failed to attach to existing video element for ${participant.identity}:`,
-                error
-              );
-            }
-          }
-        }
-
-        updateParticipants();
-        attachTrack(track, participant);
-      }
-    );
-
-    room.on(
-      RoomEvent.TrackUnsubscribed,
-      (
-        track: RemoteTrack,
-        _publication: RemoteTrackPublication,
-        participant: RemoteParticipant
-      ) => {
-        console.log("🎬 Track unsubscribed:", track.kind, participant.identity);
-        updateParticipants();
-        detachTrack(track);
-      }
-    );
-
-    room.on(
-      RoomEvent.LocalTrackPublished,
-      (publication: LocalTrackPublication) => {
-        console.log(
-          "🎬 Local track published:",
-          publication.kind,
-          publication.source
-        );
-
-        if (publication.track) {
-          attachLocalTrack(publication.track);
-        }
-
-        updateParticipants();
-      }
-    );
 
     room.on(
       RoomEvent.TrackMuted,
@@ -421,175 +346,11 @@ export default function PatientMeetingRoom({
     setIsAudioEnabled(!!audioEnabled);
   }, [localParticipant]);
 
-  const attachTrack = useCallback(
-    (track: Track, participant: Participant) => {
-      console.log(
-        `🎥 Attaching track: ${track.kind} for ${participant.identity}`
-      );
 
-      if (track.kind === Track.Kind.Video) {
-        const isLocal = participant === room?.localParticipant;
 
-        if (isLocal && localVideoRef.current) {
-          console.log("🎥 Attaching local video track");
-          try {
-            track.attach(localVideoRef.current);
-          } catch (error) {
-            console.error("🎥 Failed to attach local video track:", error);
-          }
-        } else if (!isLocal) {
-          // For remote participants, we'll attach when the video element is created
-          console.log("🎥 Remote video track ready for attachment");
-        }
-      } else if (track.kind === Track.Kind.Audio) {
-        const isLocal = participant === room?.localParticipant;
 
-        if (!isLocal) {
-          console.log(
-            `🔊 Attaching remote audio track for ${participant.identity}`
-          );
-          try {
-            let audioElement = document.getElementById(
-              `audio-${participant.sid}`
-            ) as HTMLAudioElement;
-            if (!audioElement) {
-              audioElement = document.createElement("audio");
-              audioElement.id = `audio-${participant.sid}`;
-              audioElement.autoplay = true;
-              audioElement.muted = false;
-              document.body.appendChild(audioElement);
-              console.log(
-                `🔊 Created audio element for ${participant.identity}`
-              );
-            }
-            track.attach(audioElement);
-          } catch (error) {
-            console.error(
-              `🔊 Failed to attach remote audio track for ${participant.identity}:`,
-              error
-            );
-          }
-        }
-      }
-    },
-    [room]
-  );
 
-  const detachTrack = (track: Track) => {
-    track.detach();
-  };
 
-  const cleanupParticipantAudio = (participantSid: string) => {
-    const audioElement = document.getElementById(`audio-${participantSid}`);
-    if (audioElement) {
-      console.log(
-        `🔊 Removing audio element for participant ${participantSid}`
-      );
-      audioElement.remove();
-    }
-  };
-
-  const attachLocalTrack = (track: LocalTrack) => {
-    if (track.kind === Track.Kind.Video && localVideoRef.current) {
-      console.log("🎥 Attaching local track");
-      try {
-        track.attach(localVideoRef.current);
-        console.log("🎥 Local track attached successfully");
-      } catch (error) {
-        console.error("🎥 Failed to attach local track:", error);
-      }
-    }
-  };
-
-  // Ensure local video element gets stream when available
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      console.log("🎥 Setting local stream on video element");
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
-
-  // Attach remote video tracks when video elements are created
-  const attachRemoteVideoTrack = useCallback(
-    (participantSid: string, videoElement: HTMLVideoElement) => {
-      const participant = room.remoteParticipants.get(participantSid);
-      if (participant) {
-        console.log(
-          `🎥 Attempting to attach video for ${participant.identity}`
-        );
-
-        const videoPublication = participant.getTrackPublication(
-          Track.Source.Camera
-        );
-        if (videoPublication) {
-          // Ensure the track is subscribed
-          videoPublication.setSubscribed(true);
-          console.log(
-            `🎥 Video publication found for ${participant.identity}, subscribed: ${videoPublication.isSubscribed}`
-          );
-
-          const videoTrack = videoPublication.track;
-          if (videoTrack) {
-            console.log(
-              `🎥 Attaching remote video track for ${participant.identity}`
-            );
-            try {
-              videoTrack.attach(videoElement);
-              console.log(
-                `🎥 Successfully attached video track for ${participant.identity}`
-              );
-            } catch (error) {
-              console.error(
-                `🎥 Failed to attach remote video track for ${participant.identity}:`,
-                error
-              );
-            }
-          } else {
-            console.log(
-              `🎥 No video track available for ${participant.identity}, waiting for subscription...`
-            );
-            // Set up a retry mechanism
-            setTimeout(() => {
-              const retryPublication = participant.getTrackPublication(
-                Track.Source.Camera
-              );
-              if (retryPublication?.track) {
-                console.log(
-                  `🎥 Retrying video attachment for ${participant.identity}`
-                );
-                try {
-                  retryPublication.track.attach(videoElement);
-                } catch (error) {
-                  console.error(
-                    `🎥 Retry failed for ${participant.identity}:`,
-                    error
-                  );
-                }
-              }
-            }, 1000);
-          }
-        } else {
-          console.log(
-            `🎥 No video publication found for ${participant.identity}, checking for tracks...`
-          );
-          // Check if participant has any video tracks
-          const videoPublication = participant.getTrackPublication(
-            Track.Source.Camera
-          );
-          const audioPublication = participant.getTrackPublication(
-            Track.Source.Microphone
-          );
-          console.log(`🎥 Participant ${participant.identity} publications:`, {
-            video: !!videoPublication,
-            audio: !!audioPublication,
-          });
-        }
-      } else {
-        console.log(`🎥 No participant found for SID: ${participantSid}`);
-      }
-    },
-    [room]
-  );
 
   const toggleVideo = async () => {
     if (localParticipant) {
@@ -659,35 +420,7 @@ export default function PatientMeetingRoom({
     }
   }, [localParticipant, updateLocalTrackStates]);
 
-  // Periodically check for remote video tracks and attach them
-  useEffect(() => {
-    const checkRemoteTracks = () => {
-      room.remoteParticipants.forEach((participant) => {
-        const videoElement = remoteVideoRefs.current.get(participant.sid);
-        if (videoElement) {
-          const videoPublication = participant.getTrackPublication(
-            Track.Source.Camera
-          );
-          if (videoPublication?.track && !videoElement.srcObject) {
-            console.log(
-              `🎥 Found unattached video track for ${participant.identity}, attaching...`
-            );
-            try {
-              videoPublication.track.attach(videoElement);
-            } catch (error) {
-              console.error(
-                `🎥 Failed to attach video track for ${participant.identity}:`,
-                error
-              );
-            }
-          }
-        }
-      });
-    };
 
-    const interval = setInterval(checkRemoteTracks, 3000);
-    return () => clearInterval(interval);
-  }, [room]);
 
   const leaveRoom = () => {
     room.disconnect();
@@ -822,48 +555,8 @@ export default function PatientMeetingRoom({
                   animate={{ opacity: 1, scale: 1 }}
                   className="relative bg-gray-800 rounded-lg overflow-hidden aspect-[4/3]"
                 >
-                  <video
-                    ref={
-                      isLocal
-                        ? localVideoRef
-                        : (ref) => {
-                            if (ref) {
-                              console.log(
-                                `🎥 Video element created for ${participantInfo.participant.identity}`
-                              );
-                              remoteVideoRefs.current.set(
-                                participantInfo.participant.sid,
-                                ref
-                              );
-                              // Attach remote video track when element is created
-                              attachRemoteVideoTrack(
-                                participantInfo.participant.sid,
-                                ref
-                              );
-                            }
-                          }
-                    }
-                    autoPlay
-                    playsInline
-                    muted={isLocal}
-                    className="w-full h-full object-contain"
-                    style={{
-                      transform: "scaleX(-1)",
-                      willChange: "transform",
-                      backfaceVisibility: "hidden",
-                    }}
-                    onLoadedMetadata={() => {
-                      console.log(
-                        `🎥 Video metadata loaded for ${participantInfo.participant.identity}`
-                      );
-                    }}
-                    onError={(e) => {
-                      console.error(
-                        `🎥 Video error for ${participantInfo.participant.identity}:`,
-                        e
-                      );
-                    }}
-                  />
+                  <VideoTrackView track={participantInfo.videoTrack} isLocal={isLocal} />
+                  {!isLocal && <AudioTrackView track={participantInfo.audioTrack} />}
 
                   {/* Participant Info Overlay */}
                   <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
@@ -966,36 +659,7 @@ export default function PatientMeetingRoom({
                 >
                   Test Local Stream
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    room.remoteParticipants.forEach((participant) => {
-                      const videoElement = remoteVideoRefs.current.get(
-                        participant.sid
-                      );
-                      if (videoElement) {
-                        const videoPublication =
-                          participant.getTrackPublication(Track.Source.Camera);
-                        if (videoPublication?.track) {
-                          console.log(
-                            `🎥 Manually attaching video for ${participant.identity}`
-                          );
-                          try {
-                            videoPublication.track.attach(videoElement);
-                          } catch (error) {
-                            console.error(
-                              `🎥 Manual attachment failed for ${participant.identity}:`,
-                              error
-                            );
-                          }
-                        }
-                      }
-                    });
-                  }}
-                  className="text-xs w-full"
-                >
-                  Force Attach Remote Video
-                </Button>
+
               </div>
 
               <div className="border-t border-gray-600 pt-2">

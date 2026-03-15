@@ -4,7 +4,14 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, MessageCircle, AlertTriangle, Link } from "lucide-react";
+import {
+  Plus,
+  MessageCircle,
+  AlertTriangle,
+  Link,
+  Mic,
+  MicOff,
+} from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────── //
 interface Message {
@@ -28,10 +35,12 @@ interface Chat {
 
 // ── Config ─────────────────────────────────────────────────────────────── //
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-const DOMAIN       = "medical";
+const DOMAIN = "medical";
 
 // ── Helpers ────────────────────────────────────────────────────────────── //
-function nowISO() { return new Date().toISOString(); }
+function nowISO() {
+  return new Date().toISOString();
+}
 
 function formatAssistantText(data: {
   answer?: string;
@@ -52,22 +61,34 @@ function formatAssistantText(data: {
   if (data.possible_diseases?.length) {
     const diseases = data.possible_diseases
       .map((d) => {
-        const hasConf = typeof d.confidence === "number" && Number.isFinite(d.confidence) && d.confidence > 0;
-        return hasConf ? `${d.name} (${Math.round(d.confidence! * 100)}%)` : d.name;
+        const hasConf =
+          typeof d.confidence === "number" &&
+          Number.isFinite(d.confidence) &&
+          d.confidence > 0;
+        return hasConf
+          ? `${d.name} (${Math.round(d.confidence! * 100)}%)`
+          : d.name;
       })
       .join(", ");
     parts.push(`Possible conditions: ${diseases}`);
   }
 
   if (data.recommendations?.length) {
-    parts.push(`\nRecommendations:\n${data.recommendations.map((r) => `• ${r}`).join("\n")}`);
+    parts.push(
+      `\nRecommendations:\n${data.recommendations.map((r) => `• ${r}`).join("\n")}`,
+    );
   }
 
   if (data.follow_up_questions?.length) {
-    parts.push(`\nFollow-up questions:\n${data.follow_up_questions.map((q) => `• ${q}`).join("\n")}`);
+    parts.push(
+      `\nFollow-up questions:\n${data.follow_up_questions.map((q) => `• ${q}`).join("\n")}`,
+    );
   }
 
-  return parts.join("\n").trim() || "I could not generate a response. Please try again.";
+  return (
+    parts.join("\n").trim() ||
+    "I could not generate a response. Please try again."
+  );
 }
 
 // ── Fire-and-forget DB helper (never blocks UI) ─────────────────────── //
@@ -81,7 +102,7 @@ async function dbSaveMessage(
     possible_diseases?: { name: string; confidence: number }[];
     recommendations?: string[];
     follow_up_questions?: string[];
-  }
+  },
 ) {
   try {
     const res = await fetch("/api/chat/messages", {
@@ -135,7 +156,9 @@ async function dbRenameSession(id: string, title: string) {
 
 async function dbDeleteSession(id: string) {
   try {
-    const res = await fetch(`/api/chat/conversations/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/chat/conversations/${id}`, {
+      method: "DELETE",
+    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error("dbDeleteSession failed:", res.status, err);
@@ -147,12 +170,18 @@ async function dbDeleteSession(id: string) {
 
 // ── Main component ─────────────────────────────────────────────────────── //
 export default function PatientChatPage() {
-  const [chats, setChats]               = useState<Chat[]>([]);
+  const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [input, setInput]               = useState("");
-  const [loading, setLoading]           = useState(false);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
 
   // Persist a stable user_id in localStorage so the FastAPI backend can track history
   const [userId] = useState<string>(() => {
@@ -196,7 +225,9 @@ export default function PatientChatPage() {
     }
   }, []);
 
-  useEffect(() => { loadChats(); }, [loadChats]);
+  useEffect(() => {
+    loadChats();
+  }, [loadChats]);
 
   // ── Scroll to bottom on new messages ──────────────────────────────────
   useEffect(() => {
@@ -207,18 +238,16 @@ export default function PatientChatPage() {
 
   // ── Create new chat ────────────────────────────────────────────────────
   const createChat = async () => {
-    // Immediately create local chat so UI is responsive
     const tempId = uuidv4();
     const title = `New chat ${chats.length + 1}`;
     const c: Chat = { id: tempId, title, messages: [], createdAt: nowISO() };
     setChats((prev) => [c, ...prev]);
     setActiveChatId(tempId);
 
-    // Persist to DB in background; if successful, swap temp id for real id
     const dbId = await dbCreateSession(title);
     if (dbId) {
       setChats((prev) =>
-        prev.map((ch) => (ch.id === tempId ? { ...ch, id: dbId } : ch))
+        prev.map((ch) => (ch.id === tempId ? { ...ch, id: dbId } : ch)),
       );
       setActiveChatId(dbId);
     }
@@ -229,7 +258,7 @@ export default function PatientChatPage() {
     const filtered = chats.filter((c) => c.id !== id);
     setChats(filtered);
     if (activeChatId === id) setActiveChatId(filtered[0]?.id || null);
-    dbDeleteSession(id); // fire-and-forget
+    dbDeleteSession(id);
   };
 
   // ── Rename ─────────────────────────────────────────────────────────────
@@ -237,9 +266,9 @@ export default function PatientChatPage() {
     const newTitle = prompt("New chat title");
     if (!newTitle) return;
     setChats((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c))
+      prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c)),
     );
-    dbRenameSession(id, newTitle); // fire-and-forget
+    dbRenameSession(id, newTitle);
   };
 
   // ── Send message ───────────────────────────────────────────────────────
@@ -249,7 +278,6 @@ export default function PatientChatPage() {
     const sentText = input.trim();
     setInput("");
 
-    // Ensure there's an active chat — await DB creation so we have the real ID
     let chatId = activeChatId;
     if (!chatId) {
       const tempId = uuidv4();
@@ -259,18 +287,16 @@ export default function PatientChatPage() {
       setActiveChatId(tempId);
       chatId = tempId;
 
-      // Await DB creation so we get the real ID for message saves
       const dbId = await dbCreateSession(title);
       if (dbId) {
         chatId = dbId;
         setChats((prev) =>
-          prev.map((ch) => (ch.id === tempId ? { ...ch, id: dbId } : ch))
+          prev.map((ch) => (ch.id === tempId ? { ...ch, id: dbId } : ch)),
         );
         setActiveChatId(dbId);
       }
     }
 
-    // Add user message to UI immediately
     const userMsg: Message = {
       id: uuidv4(),
       sender: "user",
@@ -279,14 +305,12 @@ export default function PatientChatPage() {
     };
     setChats((prev) =>
       prev.map((c) =>
-        c.id === chatId ? { ...c, messages: [...c.messages, userMsg] } : c
-      )
+        c.id === chatId ? { ...c, messages: [...c.messages, userMsg] } : c,
+      ),
     );
 
-    // Save user message to DB (chatId is now the real DB id)
     dbSaveMessage(chatId, { sender: "user", text: sentText });
 
-    // Add loading placeholder
     const placeholderId = "placeholder-" + uuidv4();
     const placeholder: Message = {
       id: placeholderId,
@@ -296,47 +320,48 @@ export default function PatientChatPage() {
     };
     setChats((prev) =>
       prev.map((c) =>
-        c.id === chatId ? { ...c, messages: [...c.messages, placeholder] } : c
-      )
+        c.id === chatId ? { ...c, messages: [...c.messages, placeholder] } : c,
+      ),
     );
 
     setLoading(true);
 
     try {
-      // ── Real API call to FastAPI backend ──────────────────────────── //
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id:    userId,
+          user_id: userId,
           session_id: chatId,
-          message:    sentText,
-          domain:     DOMAIN,
+          message: sentText,
+          domain: DOMAIN,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Server error: ${response.status} ${response.statusText}`,
+        );
       }
 
       const data = await response.json();
       const assistantText = formatAssistantText(data);
 
-      // Auto-rename chat from the first user message
       setChats((prev) => {
         const chat = prev.find((c) => c.id === chatId);
-        const isFirstMessage = chat && chat.messages.filter(m => m.sender === "user").length <= 1;
+        const isFirstMessage =
+          chat && chat.messages.filter((m) => m.sender === "user").length <= 1;
         if (isFirstMessage) {
-          const newTitle = sentText.slice(0, 40) + (sentText.length > 40 ? "…" : "");
+          const newTitle =
+            sentText.slice(0, 40) + (sentText.length > 40 ? "…" : "");
           dbRenameSession(chatId!, newTitle);
           return prev.map((c) =>
-            c.id === chatId ? { ...c, title: newTitle } : c
+            c.id === chatId ? { ...c, title: newTitle } : c,
           );
         }
         return prev;
       });
 
-      // Save assistant message to DB (chatId is the real DB id)
       dbSaveMessage(chatId, {
         sender: "assistant",
         text: assistantText,
@@ -347,7 +372,6 @@ export default function PatientChatPage() {
         follow_up_questions: data.follow_up_questions || [],
       });
 
-      // Replace placeholder with real response
       setChats((prev) =>
         prev.map((c) => {
           if (c.id !== chatId) return c;
@@ -359,20 +383,19 @@ export default function PatientChatPage() {
                     ...m,
                     id: uuidv4(),
                     text: assistantText,
-                    emergency:          data.emergency         || false,
-                    symptoms:           data.symptoms          || [],
-                    possible_diseases:  data.possible_diseases || [],
-                    recommendations:    data.recommendations   || [],
+                    emergency: data.emergency || false,
+                    symptoms: data.symptoms || [],
+                    possible_diseases: data.possible_diseases || [],
+                    recommendations: data.recommendations || [],
                     follow_up_questions: data.follow_up_questions || [],
                   }
-                : m
+                : m,
             ),
           };
-        })
+        }),
       );
     } catch (err) {
       console.error("API call failed:", err);
-      // Replace placeholder with error message
       setChats((prev) =>
         prev.map((c) => {
           if (c.id !== chatId) return c;
@@ -384,40 +407,266 @@ export default function PatientChatPage() {
                     ...m,
                     text: "Sorry, I could not reach the server. Please check your connection and try again.",
                   }
-                : m
+                : m,
             ),
           };
-        })
+        }),
       );
     } finally {
       setLoading(false);
     }
   };
 
-    const downloadReport = async (sessionId?: string) => {
-      const sid = sessionId || activeChat?.id;
-      if (!sid) {
-        alert("No active session to generate report for.");
-        return;
+  // ── Voice recording ────────────────────────────────────────────────────
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      mr.ondataavailable = (ev: BlobEvent) => {
+        if (ev.data && ev.data.size) audioChunksRef.current.push(ev.data);
+      };
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Failed to start recording", err);
+      alert("Unable to access microphone.");
+    }
+  };
+
+  const stopRecording = async () => {
+    const mr = mediaRecorderRef.current;
+    if (!mr) return;
+    setIsRecording(false);
+    await new Promise<void>((resolve) => {
+      const onStop = () => {
+        try {
+          mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+        } catch (e) {}
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        audioChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        mediaStreamRef.current = null;
+        sendVoiceQuery(blob).finally(() => resolve());
+      };
+      mr.addEventListener("stop", onStop, { once: true });
+      try {
+        mr.stop();
+      } catch (e) {
+        resolve();
+      }
+    });
+  };
+
+  const sendVoiceQuery = async (audioBlob: Blob) => {
+    let chatId = activeChat?.id;
+    if (!chatId) {
+      const title = `New chat ${chats.length + 1}`;
+      const tempId = uuidv4();
+      setChats((prev) => [
+        { id: tempId, title, messages: [], createdAt: nowISO() },
+        ...prev,
+      ]);
+      setActiveChatId(tempId);
+      const dbId = await dbCreateSession(title);
+      if (dbId) {
+        chatId = dbId;
+        setChats((prev) =>
+          prev.map((c) => (c.id === tempId ? { ...c, id: dbId } : c)),
+        );
+        setActiveChatId(dbId);
+      } else {
+        chatId = tempId;
+      }
+    }
+
+    const placeholderId = "placeholder-voice-" + uuidv4();
+    const placeholder: Message = {
+      id: placeholderId,
+      sender: "assistant",
+      text: "Processing voice...",
+      createdAt: nowISO(),
+    };
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === chatId ? { ...c, messages: [...c.messages, placeholder] } : c,
+      ),
+    );
+
+    try {
+      const formData = new FormData();
+      formData.append("file", audioBlob, "recording.webm");
+      const res = await fetch(`${API_BASE_URL}/voice-query`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error(`Voice query failed: ${res.status}`);
+      const data = await res.json();
+
+      const payload =
+        data && data.success && data.message ? data.message : data;
+
+      // Play audio response if provided
+      if (payload && payload.audio_base64) {
+        try {
+          const audioBinary = atob(payload.audio_base64);
+          const arrayBuffer = new Uint8Array(audioBinary.length);
+          for (let i = 0; i < audioBinary.length; i++)
+            arrayBuffer[i] = audioBinary.charCodeAt(i);
+          const audioBlobResp = new Blob([arrayBuffer], {
+            type: payload.audio_content_type || "audio/mpeg",
+          });
+          const audioUrl = URL.createObjectURL(audioBlobResp);
+
+          // Stop any existing audio first
+          if (audioRef.current) {
+            try {
+              audioRef.current.pause();
+              URL.revokeObjectURL(audioRef.current.src);
+            } catch (e) {}
+            audioRef.current = null;
+          }
+
+          const audioEl = new Audio(audioUrl);
+          audioRef.current = audioEl;
+
+          // Set playing = true IMMEDIATELY (before play resolves) so the
+          // Stop Audio banner appears as soon as audio is kicked off.
+          setIsAudioPlaying(true);
+
+          audioEl.onended = () => {
+            setIsAudioPlaying(false);
+            try {
+              URL.revokeObjectURL(audioUrl);
+            } catch (e) {}
+            audioRef.current = null;
+          };
+
+          audioEl.onerror = () => {
+            console.error("Audio element error");
+            setIsAudioPlaying(false);
+            audioRef.current = null;
+          };
+
+          // play() — don't await; just catch rejection
+          audioEl.play().catch((e) => {
+            console.error("audio play failed:", e);
+            setIsAudioPlaying(false);
+            audioRef.current = null;
+          });
+        } catch (e) {
+          console.error("failed to decode/play audio_base64", e);
+          setIsAudioPlaying(false);
+        }
       }
 
+      const assistantText =
+        (payload &&
+          (payload.text_response || payload.text || payload.answer)) ||
+        formatAssistantText(payload) ||
+        "(no response)";
+
+      dbSaveMessage(chatId!, {
+        sender: "assistant",
+        text: assistantText,
+        emergency: data.emergency || false,
+        symptoms: data.symptoms || [],
+        possible_diseases: data.possible_diseases || [],
+        recommendations: data.recommendations || [],
+        follow_up_questions: data.follow_up_questions || [],
+      });
+
+      setChats((prev) =>
+        prev.map((c) => {
+          if (c.id !== chatId) return c;
+          return {
+            ...c,
+            messages: c.messages.map((m) =>
+              m.id === placeholderId
+                ? {
+                    ...m,
+                    id: uuidv4(),
+                    text: assistantText,
+                    emergency: data.emergency || false,
+                    symptoms: data.symptoms || [],
+                    possible_diseases: data.possible_diseases || [],
+                    recommendations: data.recommendations || [],
+                    follow_up_questions: data.follow_up_questions || [],
+                  }
+                : m,
+            ),
+          };
+        }),
+      );
+    } catch (err) {
+      console.error("sendVoiceQuery error", err);
+      setChats((prev) =>
+        prev.map((c) => {
+          if (c.id !== chatId) return c;
+          return {
+            ...c,
+            messages: c.messages.map((m) =>
+              m.id === placeholderId
+                ? { ...m, text: "Voice query failed." }
+                : m,
+            ),
+          };
+        }),
+      );
+    }
+  };
+
+  const stopAudio = () => {
+    if (audioRef.current) {
       try {
-        const url = `${API_BASE_URL}/report?user_id=${encodeURIComponent(userId)}&session_id=${encodeURIComponent(sid)}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Report request failed: ${response.status}`);
-        const blob = await response.blob();
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = `report_${userId}_${sid}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(link.href);
-      } catch (err) {
-        console.error("Report generation failed:", err);
-        alert("Failed to generate report. Check console for details.");
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        URL.revokeObjectURL(audioRef.current.src);
+      } catch (e) {}
+      audioRef.current = null;
+    }
+    setIsAudioPlaying(false);
+  };
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause();
+          URL.revokeObjectURL(audioRef.current.src);
+        } catch (e) {}
+        audioRef.current = null;
       }
     };
+  }, []);
+
+  const downloadReport = async (sessionId?: string) => {
+    const sid = sessionId || activeChat?.id;
+    if (!sid) {
+      alert("No active session to generate report for.");
+      return;
+    }
+    try {
+      const url = `${API_BASE_URL}/report?user_id=${encodeURIComponent(userId)}&session_id=${encodeURIComponent(sid)}`;
+      const response = await fetch(url);
+      if (!response.ok)
+        throw new Error(`Report request failed: ${response.status}`);
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `report_${userId}_${sid}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error("Report generation failed:", err);
+      alert("Failed to generate report. Check console for details.");
+    }
+  };
 
   // ── Render ─────────────────────────────────────────────────────────────
   if (initialLoading) {
@@ -458,13 +707,20 @@ export default function PatientChatPage() {
               onClick={() => setActiveChatId(c.id)}
             >
               <div>
-                <div className="font-medium truncate max-w-[160px]">{c.title}</div>
-                <div className="text-xs text-gray-400">{c.messages.length} messages</div>
+                <div className="font-medium truncate max-w-[160px]">
+                  {c.title}
+                </div>
+                <div className="text-xs text-gray-400">
+                  {c.messages.length} messages
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   className="text-xs text-gray-400"
-                  onClick={(e) => { e.stopPropagation(); renameChat(c.id); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    renameChat(c.id);
+                  }}
                 >
                   Rename
                 </button>
@@ -487,7 +743,9 @@ export default function PatientChatPage() {
       <main className="flex-1 bg-white border rounded-lg p-4 h-[80vh] flex flex-col">
         <div className="flex-1 overflow-auto mb-4">
           {!activeChat && (
-            <div className="text-gray-500">Select or create a chat to begin.</div>
+            <div className="text-gray-500">
+              Select or create a chat to begin.
+            </div>
           )}
 
           {activeChat && (
@@ -496,7 +754,9 @@ export default function PatientChatPage() {
                 <div
                   key={m.id}
                   className={`max-w-[80%] ${
-                    m.sender === "user" ? "ml-auto text-right" : "mr-auto text-left"
+                    m.sender === "user"
+                      ? "ml-auto text-right"
+                      : "mr-auto text-left"
                   }`}
                 >
                   {/* Emergency banner */}
@@ -512,37 +772,48 @@ export default function PatientChatPage() {
                       m.sender === "user"
                         ? "bg-emerald-600 text-white"
                         : m.emergency
-                        ? "bg-red-50 border border-red-200 text-gray-800"
-                        : "bg-gray-100 text-gray-800"
+                          ? "bg-red-50 border border-red-200 text-gray-800"
+                          : "bg-gray-100 text-gray-800"
                     }`}
                   >
                     {m.text}
-                      {m.sender === "assistant" && m.text !== "Thinking..." && m.text !== "Sorry, I could not reach the server. Please check your connection and try again." && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {!m.emergency ? (
-                          <Link href="/patient/dashboard/forms/new">
-                            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" size="sm">
-                              Virtual Meeting
-                            </Button>
-                          </Link>
-                        ) : (
-                          <Link href="/patient/dashboard/physical-meeting">
-                            <Button className="bg-violet-600 hover:bg-violet-700 text-white" size="sm">
-                              Physical Meeting
-                            </Button>
-                          </Link>
-                        )}
+                    {m.sender === "assistant" &&
+                      m.text !== "Thinking..." &&
+                      m.text !== "Processing voice..." &&
+                      m.text !==
+                        "Sorry, I could not reach the server. Please check your connection and try again." && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {!m.emergency ? (
+                            <Link href="/patient/dashboard/forms/new">
+                              <Button
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                size="sm"
+                              >
+                                Virtual Meeting
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Link href="/patient/dashboard/physical-meeting">
+                              <Button
+                                className="bg-violet-600 hover:bg-violet-700 text-white"
+                                size="sm"
+                              >
+                                Physical Meeting
+                              </Button>
+                            </Link>
+                          )}
 
-                        <Button
-                          size="sm"
-                          className="bg-gray-200 text-gray-800 hover:bg-gray-300"
-                          onClick={() => downloadReport(activeChat?.id)}
-                        >
-                          Generate Report
-                        </Button>
-                      </div>
-                    )}
+                          <Button
+                            size="sm"
+                            className="bg-gray-200 text-gray-800 hover:bg-gray-300"
+                            onClick={() => downloadReport(activeChat?.id)}
+                          >
+                            Generate Report
+                          </Button>
+                        </div>
+                      )}
                   </div>
+
                   <div className="text-xs text-gray-400 mt-1">
                     {new Date(m.createdAt).toLocaleString()}
                   </div>
@@ -555,6 +826,24 @@ export default function PatientChatPage() {
 
         {/* ── Input bar ──────────────────────────────────────────────────── */}
         <div className="pt-2 border-t">
+          {/* ── Stop Audio banner — renders outside message loop so it
+               always reacts to isAudioPlaying state changes ── */}
+          {isAudioPlaying && (
+            <div className="mb-2 flex items-center gap-2 rounded-md bg-red-50 border border-red-200 px-3 py-2">
+              <span className="animate-pulse text-red-500 text-sm">🔊</span>
+              <span className="text-sm text-red-600 font-medium flex-1">
+                Playing voice response...
+              </span>
+              <Button
+                size="sm"
+                className="bg-red-500 hover:bg-red-600 text-white"
+                onClick={stopAudio}
+              >
+                Stop Audio
+              </Button>
+            </div>
+          )}
+
           <div className="flex gap-2">
             <Input
               placeholder="Describe your symptoms or ask a question..."
@@ -568,6 +857,26 @@ export default function PatientChatPage() {
               }}
               disabled={loading}
             />
+
+            {/* ── Voice input button ── */}
+            <Button
+              type="button"
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={loading}
+              className={
+                isRecording
+                  ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
+                  : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+              }
+              title={isRecording ? "Stop recording" : "Start voice input"}
+            >
+              {isRecording ? (
+                <MicOff className="h-4 w-4" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+            </Button>
+
             <Button
               onClick={send}
               disabled={loading}
@@ -576,8 +885,11 @@ export default function PatientChatPage() {
               {loading ? "Sending..." : "Send"}
             </Button>
           </div>
+
           <div className="text-xs text-gray-400 mt-2">
-            Connected to the Rural Health Assistant backend.
+            {isRecording
+              ? "🔴 Recording... click the mic button again to stop and send."
+              : "Connected to the Rural Health Assistant backend."}
           </div>
         </div>
       </main>

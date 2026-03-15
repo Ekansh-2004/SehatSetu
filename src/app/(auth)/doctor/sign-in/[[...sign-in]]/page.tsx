@@ -18,7 +18,7 @@ export default function DoctorSignInPage() {
       </div>
       
       <SignIn
-        fallbackRedirectUrl="/doctor/post-login"
+        forceRedirectUrl="/doctor/post-login"
         appearance={{
           elements: {
             formButtonPrimary: 'bg-emerald-600 hover:bg-emerald-700',

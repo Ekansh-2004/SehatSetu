@@ -36,7 +36,9 @@ export default clerkMiddleware(async (auth, req) => {
   const hasPatientSession = !!patientSession
   
   // If patient is logged in and tries to access doctor/staff routes, redirect to patient dashboard
-  if (hasPatientSession && (isDoctorRoute(req) || req.nextUrl.pathname.startsWith('/staff/'))) {
+  // But allow post-login routes (they capture geolocation)
+  const isPostLoginRoute = req.nextUrl.pathname.includes('/post-login');
+  if (hasPatientSession && !isPostLoginRoute && (isDoctorRoute(req) || req.nextUrl.pathname.startsWith('/staff/'))) {
     console.log('Patient trying to access doctor/staff route, redirecting to patient dashboard')
     return NextResponse.redirect(new URL('/patient/dashboard', req.url))
   }

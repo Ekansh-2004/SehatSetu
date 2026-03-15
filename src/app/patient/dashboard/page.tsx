@@ -460,7 +460,7 @@ export default function PatientDashboard() {
                         <div className="flex items-center gap-4 text-sm text-gray-400">
                           <span className="flex items-center gap-1">
                             <Clock className="h-3.5 w-3.5" />
-                            {formatDate(apt.date)} at {formatTime(apt.startTime)}
+                            {formatDate(apt.date)}
                           </span>
                           {apt.mode === "video" && (
                             <span className="flex items-center gap-1 text-emerald-600">

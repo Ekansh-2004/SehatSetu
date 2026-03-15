@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { haversineDistanceKm } from "@/lib/geo";
 
-const MAX_RADIUS_KM = 20;
+const MAX_RADIUS_KM = 500;
 
 async function ensureLocationColumns() {
   await prisma.$executeRawUnsafe(`
@@ -32,8 +32,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const patientIdParam = String(searchParams.get("patientId") || "").trim();
 
-    let patientLatitude = Number(searchParams.get("patient_latitude"));
-    let patientLongitude = Number(searchParams.get("patient_longitude"));
+    const latParam = searchParams.get("patient_latitude");
+    const lngParam = searchParams.get("patient_longitude");
+    let patientLatitude = latParam !== null ? Number(latParam) : NaN;
+    let patientLongitude = lngParam !== null ? Number(lngParam) : NaN;
 
     if (!Number.isFinite(patientLatitude) || !Number.isFinite(patientLongitude)) {
       if (patientIdParam) {
@@ -81,6 +83,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
+
     const doctors = await prisma.$queryRaw<
       Array<{
         id: string;
@@ -112,6 +115,7 @@ export async function GET(request: NextRequest) {
       GROUP BY d."id"
     `;
 
+
     const nearbyDoctors = doctors
       .map((doctor) => {
         const distance = haversineDistanceKm(
@@ -120,6 +124,7 @@ export async function GET(request: NextRequest) {
           doctor.latitude as number,
           doctor.longitude as number
         );
+
 
         const availabilityStatus = Number(doctor.availabilityCount) > 0 ? "Available" : "Unavailable";
 

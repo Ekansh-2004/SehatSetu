@@ -457,10 +457,6 @@ export default function PatientAppointmentsPage() {
 
                                   {/* Time & Mode */}
                                   <div className="flex flex-wrap items-center gap-4 text-sm">
-                                    <span className="flex items-center gap-1.5 text-gray-600">
-                                      <Clock className="h-4 w-4 text-gray-400" />
-                                      {formatTime(apt.startTime)} - {formatTime(apt.endTime)}
-                                    </span>
                                     <span className={`flex items-center gap-1.5 ${
                                       apt.mode === "video" ? "text-emerald-600" : "text-amber-600"
                                     }`}>

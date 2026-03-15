@@ -381,7 +381,7 @@ export default function PatientFormsPage() {
                               <div className="flex items-center gap-2"><Mail className="h-4 w-4" />{submission.email}</div>
                               <div className="flex items-center gap-2"><Phone className="h-4 w-4" />{submission.phone}</div>
                               <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />DOB: {new Date(submission.dateOfBirth).toLocaleDateString()}</div>
-                              <div className="flex items-center gap-2"><MapPin className="h-4 w-4" />{submission.city}, {submission.state}</div>
+                              <div className="flex items-center gap-2"><MapPin className="h-4 w-4" />{submission.city && submission.state ? `${submission.city}, ${submission.state}` : "Location captured via GPS"}</div>
                             </div>
 
                             <div className="flex gap-2">
@@ -435,7 +435,7 @@ export default function PatientFormsPage() {
                               <div className="flex items-center gap-2"><Mail className="h-4 w-4" />{submission.email}</div>
                               <div className="flex items-center gap-2"><Phone className="h-4 w-4" />{submission.phone}</div>
                               <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />DOB: {new Date(submission.dateOfBirth).toLocaleDateString()}</div>
-                              <div className="flex items-center gap-2"><MapPin className="h-4 w-4" />{submission.city}, {submission.state}</div>
+                              <div className="flex items-center gap-2"><MapPin className="h-4 w-4" />{submission.city && submission.state ? `${submission.city}, ${submission.state}` : "Location captured via GPS"}</div>
                             </div>
 
                             <div className="flex gap-2">
@@ -500,7 +500,7 @@ export default function PatientFormsPage() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <MapPin className="h-4 w-4" />
-                        {submission.city}, {submission.state}
+                        {submission.city && submission.state ? `${submission.city}, ${submission.state}` : "Location captured via GPS"}
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -603,7 +603,7 @@ export default function PatientFormsPage() {
                   </h3>
                   <div className="text-sm">
                     <p>{selectedSubmission.street}</p>
-                    <p>{selectedSubmission.city}, {selectedSubmission.state} {selectedSubmission.zipCode}</p>
+                    <p>{selectedSubmission.city && selectedSubmission.state ? `${selectedSubmission.city}, ${selectedSubmission.state}` : "Location captured via GPS"} {selectedSubmission.zipCode}</p>
                   </div>
                 </div>
               )}

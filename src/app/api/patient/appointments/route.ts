@@ -49,9 +49,44 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Get consultations for this patient
+    const consultations = await (prisma as any).consultation.findMany({
+      where: { patientId: patient.id },
+      orderBy: { preferredDate: 'desc' },
+      include: {
+        doctor: {
+          select: {
+            id: true,
+            name: true,
+            specialty: true,
+            email: true,
+            phone: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    // Map consultations to appointment format
+    const mappedConsultations = consultations.map((c: any) => ({
+      id: c.id,
+      date: c.finalDate || c.preferredDate,
+      startTime: c.finalTime || c.preferredTime,
+      endTime: c.finalTime ? "TBD" : "TBD", // End time is usually not stored for consultations
+      status: c.status.toLowerCase(),
+      mode: c.consultationType.toLowerCase(),
+      reason: c.symptoms,
+      doctor: c.doctor,
+    }));
+
+    // Combine and sort
+    const allAppointments = [...appointments, ...mappedConsultations].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
     return NextResponse.json({
       success: true,
-      data: appointments,
+      data: allAppointments,
     });
   } catch (error) {
     console.error('Error fetching patient appointments:', error);

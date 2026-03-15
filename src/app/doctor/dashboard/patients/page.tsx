@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mail, Phone, ClipboardList, X, AlertTriangle, Send, BedDouble, UserCheck } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Mail, Phone, ClipboardList, X, AlertTriangle, Send, BedDouble, UserCheck,
+  CheckCircle2, Clock, RefreshCw, Users, ListChecks,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@clerk/nextjs";
 
@@ -19,6 +24,21 @@ interface PatientItem {
 
 interface StaffMember { id: string; clerkUserId: string | null; name: string; role: string }
 
+interface StaffTask {
+  id: string;
+  patientName: string;
+  roomBed: string;
+  taskType: string;
+  details: string | null;
+  priority: "normal" | "urgent";
+  assignedToName: string;
+  notes: string | null;
+  status: "pending" | "completed";
+  completedAt: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
 const TASK_TYPES = [
   "Administer Injection",
   "Change Dressing",
@@ -28,11 +48,224 @@ const TASK_TYPES = [
   "Other",
 ];
 
+const TASK_BADGE: Record<string, string> = {
+  "Administer Injection": "bg-blue-100 text-blue-700",
+  "Change Dressing": "bg-green-100 text-green-700",
+  "Monitor Vitals": "bg-purple-100 text-purple-700",
+  "Administer Oral Medicine": "bg-orange-100 text-orange-700",
+  "Wound Care": "bg-teal-100 text-teal-700",
+  Other: "bg-gray-100 text-gray-600",
+};
+
 const getInitials = (name: string) => {
   const parts = name.trim().split(/\s+/);
   const initials = parts.slice(0, 2).map(p => p[0]?.toUpperCase() || "").join("");
   return initials || "P";
 };
+
+/* ── Task Board ── */
+function TaskBoard() {
+  const [tasks, setTasks] = useState<StaffTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const notifiedIds = useRef<Set<string>>(new Set());
+  const hasMounted = useRef(false);
+
+  const fetchTasks = useCallback(async (isPolling = false) => {
+    try {
+      const res = await fetch("/api/tasks");
+      const data = await res.json();
+      if (!data.success) return;
+
+      const all: StaffTask[] = data.data;
+
+      if (isPolling && hasMounted.current) {
+        const newlyDone = all.filter(
+          (t) => t.status === "completed" && !notifiedIds.current.has(t.id)
+        );
+        for (const t of newlyDone) {
+          notifiedIds.current.add(t.id);
+          toast.success(`✅ Task completed by ${t.assignedToName}`, {
+            description: `${t.taskType} for ${t.patientName}`,
+            duration: 5000,
+          });
+        }
+      } else if (!hasMounted.current) {
+        all.filter((t) => t.status === "completed").forEach((t) => notifiedIds.current.add(t.id));
+        hasMounted.current = true;
+      }
+
+      setTasks(all);
+    } catch {
+      toast.error("Failed to load tasks");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTasks(false);
+    const iv = setInterval(() => fetchTasks(true), 20_000);
+    return () => clearInterval(iv);
+  }, [fetchTasks]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchTasks(false);
+  };
+
+  const pending = tasks.filter((t) => t.status === "pending");
+  const completed = tasks.filter((t) => t.status === "completed");
+
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleString("en-IN", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#4a7fff] border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Stats bar */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: "Total Tasks", value: tasks.length, color: "text-gray-800", bg: "bg-gray-50", border: "border-gray-200" },
+          { label: "Pending", value: pending.length, color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" },
+          { label: "Completed", value: completed.length, color: "text-green-700", bg: "bg-green-50", border: "border-green-200" },
+        ].map((s) => (
+          <div key={s.label} className={`rounded-2xl border ${s.bg} ${s.border} px-5 py-4 flex flex-col gap-1`}>
+            <p className="text-xs text-gray-500 font-medium">{s.label}</p>
+            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Refresh button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center gap-1.5 text-xs text-[#4a7fff] font-medium hover:underline disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Pending column */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="h-4 w-4 text-amber-500" />
+            <h3 className="font-semibold text-gray-800 text-sm">Pending ({pending.length})</h3>
+          </div>
+          {pending.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 py-10 text-center text-gray-400 text-sm">
+              No pending tasks
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pending.map((t) => (
+                <div
+                  key={t.id}
+                  className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+                  style={{
+                    borderLeft: t.priority === "urgent" ? "4px solid #ef4444" : "4px solid #4a7fff",
+                    boxShadow: t.priority === "urgent"
+                      ? "0 2px 12px 0 rgba(239,68,68,0.10)"
+                      : "0 2px 12px 0 rgba(74,127,255,0.07)",
+                  }}
+                >
+                  {t.priority === "urgent" && (
+                    <div className="flex items-center gap-1.5 px-4 pt-3 pb-1">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                      </span>
+                      <span className="text-xs font-semibold text-red-600">Urgent</span>
+                    </div>
+                  )}
+                  <div className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-gray-800 text-sm">{t.patientName}</p>
+                        <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                          <BedDouble className="h-3 w-3" /> {t.roomBed}
+                        </p>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${TASK_BADGE[t.taskType] || "bg-gray-100 text-gray-600"}`}>
+                        {t.taskType}
+                      </span>
+                    </div>
+                    {t.details && (
+                      <p className="text-xs text-gray-500 mt-2 bg-gray-50 rounded-lg px-3 py-2">{t.details}</p>
+                    )}
+                    <div className="mt-2.5 flex items-center justify-between text-xs text-gray-400">
+                      <span>→ {t.assignedToName}</span>
+                      <span>{fmt(t.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Completed column */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
+            <h3 className="font-semibold text-gray-800 text-sm">Completed ({completed.length})</h3>
+          </div>
+          {completed.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 py-10 text-center text-gray-400 text-sm">
+              No completed tasks yet
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {completed.map((t) => (
+                <div
+                  key={t.id}
+                  className="bg-white rounded-2xl border border-green-100 shadow-sm overflow-hidden opacity-90"
+                  style={{ borderLeft: "4px solid #22c55e" }}
+                >
+                  <div className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-semibold text-gray-700 text-sm">{t.patientName}</p>
+                          <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                            <BedDouble className="h-3 w-3" /> {t.roomBed}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${TASK_BADGE[t.taskType] || "bg-gray-100 text-gray-600"}`}>
+                        {t.taskType}
+                      </span>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between text-xs text-gray-400">
+                      <span className="text-green-600 font-medium">✓ Done by {t.assignedToName}</span>
+                      {t.completedAt && <span>Completed {fmt(t.completedAt)}</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ── Quick-assign modal ── */
 function AssignTaskModal({
@@ -271,12 +504,23 @@ function AssignTaskModal({
 
 const PatientsPage: React.FC = () => {
   const { user } = useUser();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [patients, setPatients] = useState<PatientItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("");
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [assignPatient, setAssignPatient] = useState<PatientItem | null>(null);
+
+  // read ?tab= from URL so notification bell deep-link works
+  const activeTab = searchParams.get("tab") === "tasks" ? "tasks" : "patients";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -325,90 +569,116 @@ const PatientsPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Patients</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Filter by name, email, or phone"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-            <Button onClick={() => setFilter("")} variant="secondary" disabled={!filter}>
-              Clear
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Page header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Patient Management</h1>
+        <p className="text-gray-500 text-sm mt-1">Manage patients and track assigned staff tasks</p>
+      </div>
 
-      {loading && (
-        <Card>
-          <CardContent>
-            <div className="p-6 text-muted-foreground">Loading patients...</div>
-          </CardContent>
-        </Card>
-      )}
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList className="mb-2">
+          <TabsTrigger value="patients" className="flex items-center gap-1.5">
+            <Users className="h-4 w-4" />
+            Patients
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="flex items-center gap-1.5">
+            <ListChecks className="h-4 w-4" />
+            Task Board
+          </TabsTrigger>
+        </TabsList>
 
-      {error && !loading && (
-        <Card>
-          <CardContent>
-            <div className="p-6 text-red-600">{error}</div>
-          </CardContent>
-        </Card>
-      )}
+        {/* ── PATIENTS TAB ── */}
+        <TabsContent value="patients" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Patients</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Filter by name, email, or phone"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                />
+                <Button onClick={() => setFilter("")} variant="secondary" disabled={!filter}>
+                  Clear
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
-      {!loading && !error && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.length === 0 ? (
-            <Card className="sm:col-span-2 lg:col-span-3">
+          {loading && (
+            <Card>
               <CardContent>
-                <div className="p-6 text-muted-foreground">No patients found.</div>
+                <div className="p-6 text-muted-foreground">Loading patients...</div>
               </CardContent>
             </Card>
-          ) : (
-            filtered.map((p) => (
-              <Card key={p.id} className="h-full hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-2 min-h-[40px]">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="size-10">
-                      {p.image ? (
-                        <AvatarImage alt={p.name} src={p.image} />
-                      ) : (
-                        <AvatarFallback>{getInitials(p.name)}</AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-base truncate">{p.name}</CardTitle>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      <span className="truncate">{p.email}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      <span className="truncate tabular-nums">{p.phone}</span>
-                    </div>
-                    {/* Assign Task button */}
-                    <button
-                      onClick={() => setAssignPatient(p)}
-                      className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold text-[#4a7fff] border border-[#4a7fff]/30 bg-[#f0f4ff] hover:bg-[#4a7fff] hover:text-white transition"
-                    >
-                      <ClipboardList className="h-3.5 w-3.5" />
-                      Assign Task
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
           )}
-        </div>
-      )}
+
+          {error && !loading && (
+            <Card>
+              <CardContent>
+                <div className="p-6 text-red-600">{error}</div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!loading && !error && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filtered.length === 0 ? (
+                <Card className="sm:col-span-2 lg:col-span-3">
+                  <CardContent>
+                    <div className="p-6 text-muted-foreground">No patients found.</div>
+                  </CardContent>
+                </Card>
+              ) : (
+                filtered.map((p) => (
+                  <Card key={p.id} className="h-full hover:shadow-lg transition-shadow">
+                    <CardHeader className="pb-2 min-h-[40px]">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-10">
+                          {p.image ? (
+                            <AvatarImage alt={p.name} src={p.image} />
+                          ) : (
+                            <AvatarFallback>{getInitials(p.name)}</AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div>
+                          <CardTitle className="text-base truncate">{p.name}</CardTitle>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          <span className="truncate">{p.email}</span>
+                        </div>
+                        <div className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Phone className="h-4 w-4" />
+                          <span className="truncate tabular-nums">{p.phone}</span>
+                        </div>
+                        <button
+                          onClick={() => setAssignPatient(p)}
+                          className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold text-[#4a7fff] border border-[#4a7fff]/30 bg-[#f0f4ff] hover:bg-[#4a7fff] hover:text-white transition"
+                        >
+                          <ClipboardList className="h-3.5 w-3.5" />
+                          Assign Task
+                        </button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── TASK BOARD TAB ── */}
+        <TabsContent value="tasks">
+          <TaskBoard />
+        </TabsContent>
+      </Tabs>
 
       {/* Quick-assign modal */}
       {assignPatient && (

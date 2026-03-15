@@ -40,11 +40,27 @@ interface UseWhisperStreamingReturn {
   clearMessages: () => void;
 }
 
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onresult: ((event: any) => void) | null;
+  onerror: ((event: any) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserWindowWithSpeech = Window & {
+  SpeechRecognition?: new () => BrowserSpeechRecognition;
+  webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+};
+
 export const useWhisperStreaming = (
   options: UseWhisperStreamingOptions = {}
 ): UseWhisperStreamingReturn => {
   const {
-    appointmentId,
     onSpeechStarted,
     onUtteranceEnd,
     onError,
@@ -61,6 +77,7 @@ export const useWhisperStreaming = (
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const allAudioChunksRef = useRef<Blob[]>([]);
   const sessionActiveRef = useRef<boolean>(false);
@@ -88,51 +105,20 @@ export const useWhisperStreaming = (
 
   }, []);
 
-  const sendAudioChunk = async (chunk: Blob) => {
-    if (!sessionActiveRef.current) return;
-    
-    // Set speech status
-    if (!speechDetected) {
-        setSpeechDetected(true);
-        onSpeechStarted?.();
-    }
-
-    try {
-      const formData = new FormData();
-      formData.append('file', chunk, 'audio.webm');
-      if (appointmentId) {
-        formData.append('appointmentId', appointmentId);
-      }
-
-      const response = await fetch('/api/transcribe', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Transcription failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data.transcript && data.transcript.trim() !== '') {
-          addMessage(data.transcript, false);
-          onUtteranceEnd?.(data.transcript);
-      }
-
-      // Briefly flag speech as ended after processing chunk
-      setTimeout(() => setSpeechDetected(false), 1000);
-
-    } catch (err) {
-      console.error('❌ Failed to process audio chunk with Whisper:', err);
-    }
-  };
-
   const startStreaming = useCallback(async () => {
     try {
       setError(null);
       setConnectionStatus('connecting');
       allAudioChunksRef.current = [];
       sessionActiveRef.current = true;
+
+      const speechWindow = window as BrowserWindowWithSpeech;
+      const SpeechRecognitionImpl =
+        speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+
+      if (!SpeechRecognitionImpl) {
+        throw new Error('Live transcription is not supported in this browser. Please use Chrome or Edge.');
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -151,22 +137,21 @@ export const useWhisperStreaming = (
 
       mediaRecorderRef.current = mediaRecorder;
 
-      mediaRecorder.ondataavailable = async (event) => {
+      mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0 && sessionActiveRef.current) {
           allAudioChunksRef.current.push(event.data);
-          await sendAudioChunk(event.data);
         }
       };
 
       mediaRecorder.onstart = () => {
-        console.log('🎙️ Whisper recording started');
+        console.log('🎙️ Browser transcription recording started');
         setIsRecording(true);
         setIsConnected(true);
         setConnectionStatus('connected');
       };
 
       mediaRecorder.onstop = () => {
-        console.log('🛑 Whisper recording stopped');
+        console.log('🛑 Browser transcription recording stopped');
         setIsRecording(false);
       };
 
@@ -176,7 +161,65 @@ export const useWhisperStreaming = (
         onError?.('Recording error occurred');
       };
 
+      const recognition = new SpeechRecognitionImpl();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        console.log('🗣️ Web Speech recognition started');
+        setConnectionStatus('connected');
+      };
+
+      recognition.onresult = (event: any) => {
+        if (!sessionActiveRef.current) return;
+
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          const text = (result[0]?.transcript || '').trim();
+          if (!text) continue;
+
+          if (result.isFinal) {
+            addMessage(text, false);
+            onUtteranceEnd?.(text);
+            setInterimText('');
+            setSpeechDetected(false);
+          } else {
+            interimTranscript += `${text} `;
+          }
+        }
+
+        if (interimTranscript.trim()) {
+          setSpeechDetected(true);
+          onSpeechStarted?.();
+          addMessage(interimTranscript.trim(), true);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        const errorMessage = `Speech recognition error: ${event?.error || 'unknown'}`;
+        console.error('❌', errorMessage);
+        setError(errorMessage);
+        setConnectionStatus('error');
+        onError?.(errorMessage);
+      };
+
+      recognition.onend = () => {
+        // Keep recognition alive while session is active. Some browsers auto-stop.
+        if (sessionActiveRef.current) {
+          try {
+            recognition.start();
+          } catch {
+            // Ignore restart race errors.
+          }
+        }
+      };
+
+      recognitionRef.current = recognition;
+
       mediaRecorder.start(chunkDurationMs);
+      recognition.start();
 
     } catch (err) {
       console.error('❌ Failed to start recording:', err);
@@ -186,7 +229,7 @@ export const useWhisperStreaming = (
       onError?.(errorMessage);
       sessionActiveRef.current = false;
     }
-  }, [chunkDurationMs, addMessage, onSpeechStarted, onUtteranceEnd, onError, speechDetected]);
+  }, [chunkDurationMs, addMessage, onSpeechStarted, onUtteranceEnd, onError]);
 
   const stopStreaming = useCallback(() => {
     console.log('🛑 Stopping streaming...');
@@ -207,6 +250,15 @@ export const useWhisperStreaming = (
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
     }
 
     setIsConnected(false);

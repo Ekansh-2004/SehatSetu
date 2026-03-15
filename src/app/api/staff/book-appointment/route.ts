@@ -6,6 +6,20 @@ import { CLINIC_TIMEZONE } from '@/lib/config/timezone';
 import { DatabaseService } from '@/lib/db/services/databaseService';
 import { RRuleSlotManager } from '@/lib/utils/rruleSlots';
 
+const CONSULTATION_MODE_PREFIX = '[CONSULTATION_MODE]:';
+
+function extractBookingReason(notes: string | null | undefined): string {
+  if (!notes) return 'Appointment booked by staff';
+
+  const cleaned = notes
+    .split('\n')
+    .filter((line) => !line.startsWith(CONSULTATION_MODE_PREFIX))
+    .join('\n')
+    .trim();
+
+  return cleaned || 'Appointment booked by staff';
+}
+
 type BookingSlot = {
   date: string;
   startTime: string;
@@ -141,7 +155,7 @@ export async function POST(request: NextRequest) {
       status: 'confirmed',
       type: 'consultation',
       mode: 'video',
-      reason: form.notes || 'Appointment booked by staff',
+      reason: extractBookingReason(form.notes),
       symptoms: [],
       paymentAmount: 0,
       paymentStatus: 'pending',

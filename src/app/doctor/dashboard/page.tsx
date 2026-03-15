@@ -79,7 +79,7 @@ export default function DoctorDashboard() {
 		);
 	}
 
-	if (error) {
+	if (error && !doctor) {
 		return (
 			<div className="min-h-screen flex items-center justify-center">
 				<div className="text-lg text-red-600">Error: {error}</div>

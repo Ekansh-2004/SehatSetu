@@ -34,7 +34,7 @@ export default function PatientSignInPage() {
 
       if (data.success) {
         toast.success("Signed in successfully!");
-        router.push("/book");
+        router.push("/patient/post-login");
       } else {
         toast.error(data.error || "Failed to sign in");
       }

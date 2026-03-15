@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db/prisma";
 
+type PrismaLikeError = {
+  code?: string;
+};
+
+function isMissingStaffTasksTable(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const prismaError = error as PrismaLikeError;
+  return prismaError.code === "P2021";
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -35,6 +48,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, data: tasks });
   } catch (error) {
     console.error("Error fetching tasks:", error);
+    if (isMissingStaffTasksTable(error)) {
+      // Keep GET resilient during schema rollout; return empty tasks until migration is applied.
+      return NextResponse.json({ success: true, data: [], warning: "staff_tasks table is missing" });
+    }
     return NextResponse.json({ success: false, error: "Failed to fetch tasks" }, { status: 500 });
   }
 }
@@ -109,6 +126,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, data: task }, { status: 201 });
   } catch (error) {
     console.error("Error creating task:", error);
+    if (isMissingStaffTasksTable(error)) {
+      return NextResponse.json(
+        { success: false, error: "Task system is not initialized. Run pending Prisma migrations." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ success: false, error: "Failed to create task" }, { status: 500 });
   }
 }

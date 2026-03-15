@@ -17,6 +17,68 @@ import {
 // Set timeout to 30 seconds to prevent data loss
 export const maxDuration = 30
 
+const CONSULTATION_MODE_PREFIX = '[CONSULTATION_MODE]:'
+
+function extractConsultationMode(notes: unknown): 'video' | 'physical' {
+  if (typeof notes !== 'string') return 'physical'
+  const markerLine = notes
+    .split('\n')
+    .find((line) => line.startsWith(CONSULTATION_MODE_PREFIX))
+
+  if (!markerLine) return 'physical'
+  return markerLine.slice(CONSULTATION_MODE_PREFIX.length).trim().toLowerCase() === 'video'
+    ? 'video'
+    : 'physical'
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await currentUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id: rawId } = await params
+    const id = sanitizeId(rawId)
+    if (!id) {
+      return NextResponse.json({ error: 'Invalid form ID format' }, { status: 400 })
+    }
+
+    const submission = await prisma.patientFormSubmission.findUnique({
+      where: { id },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    })
+
+    if (!submission) {
+      return NextResponse.json({ error: 'Patient form not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...submission,
+        consultationMode: extractConsultationMode(submission.notes),
+      },
+    })
+  } catch (error) {
+    console.error('Error fetching patient form:', error)
+    return NextResponse.json({ error: 'Failed to fetch form' }, { status: 500 })
+  }
+}
+
 // Update patient form submission (for staff)
 export async function PUT(
   request: NextRequest,

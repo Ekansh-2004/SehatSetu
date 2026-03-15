@@ -75,6 +75,14 @@ export async function POST(request: NextRequest) {
 
     const patient = await prisma.patient.findUnique({
       where: { email: sanitizedEmail },
+      // Select only auth/session fields so sign-in is resilient to unrelated schema drift.
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        password: true,
+      },
     });
 
     if (!patient) {

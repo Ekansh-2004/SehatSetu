@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
 
-const API_KEY = "AIzaSyD22Js_yz2uaRGplGJluVVUAOvtGUd_CgU";
+const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
 export default function PredictPage() {

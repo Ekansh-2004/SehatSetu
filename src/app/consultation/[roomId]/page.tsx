@@ -2,14 +2,32 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Room } from "livekit-client";
-import PatientPreJoin from "@/components/video/PatientPreJoin";
-import PatientMeetingRoom from "@/components/video/PatientMeetingRoom";
+import type { Room as RoomType } from "livekit-client";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, Home, Scan } from "lucide-react";
+import { AlertCircle, Home, Loader2, Scan } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import Link from "next/link";
+
+// Lazy-load heavy LiveKit components (~2MB livekit-client)
+const PatientPreJoin = dynamic(
+  () => import("@/components/video/PatientPreJoin"),
+  { ssr: false, loading: () => (
+    <div className="min-h-screen flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+    </div>
+  )}
+);
+
+const PatientMeetingRoom = dynamic(
+  () => import("@/components/video/PatientMeetingRoom"),
+  { ssr: false, loading: () => (
+    <div className="min-h-screen flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+    </div>
+  )}
+);
 
 interface ConsultationPageProps {
   params: Promise<{ roomId: string }>;
@@ -20,7 +38,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   const [currentStep, setCurrentStep] = useState<
     "loading" | "pre-join" | "meeting" | "ended" | "error"
   >("loading");
-  const [room, setRoom] = useState<Room | null>(null);
+  const [room, setRoom] = useState<RoomType | null>(null);
   const [token, setToken] = useState<string>("");
   const [wsUrl, setWsUrl] = useState<string>("");
   const [error, setError] = useState<string>("");
@@ -105,6 +123,9 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   const handleJoinRoom = async () => {
     try {
       setCurrentStep("loading");
+
+      // Dynamic import of livekit-client only when user actually joins
+      const { Room } = await import("livekit-client");
 
       // Create LiveKit room instance with improved configuration
       const newRoom = new Room({

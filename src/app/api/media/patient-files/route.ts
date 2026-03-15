@@ -89,18 +89,12 @@ export async function POST(request: NextRequest) {
 
     for (const file of patientFiles) {
       try {
-        // Build S3 URL from stored bucket/key if present; fallback to existing s3Url
-        const bucketConfig = TenantConfigService.getTenantConfigByBucket(file.s3Bucket || '')
-        const region = bucketConfig?.aws.region || tenantConfig.aws.region
-        const effectiveTenantId = file.tenantId || bucketConfig?.id || tenantId
+        // Use stored URL directly (Vercel Blob URLs are public)
+        const fileUrl = file.s3Url || undefined
 
-        const s3Url = file.s3Bucket && file.s3Key
-          ? `https://${file.s3Bucket}.s3.${region}.amazonaws.com/${file.s3Key}`
-          : (file.s3Url || (file.s3Bucket && file.s3Key ? `https://${file.s3Bucket}.s3.${region}.amazonaws.com/${file.s3Key}` : undefined))
-
-        // Generate presigned URL with 1 hour expiration using multi-tenant aware client
-        const presignedUrl = s3Url 
-          ? await MultiTenantS3Client.generatePresignedUrl(effectiveTenantId || 'default', s3Url, 3600)
+        // Generate presigned URL (for Vercel Blob this just returns the URL)
+        const presignedUrl = fileUrl 
+          ? await MultiTenantS3Client.generatePresignedUrl(file.tenantId || tenantId, fileUrl, 3600)
           : undefined
         
         if (presignedUrl) {

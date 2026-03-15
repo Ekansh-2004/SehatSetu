@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
+    experimental: {
+        optimizePackageImports: ['framer-motion', 'lucide-react'],
+    },
     
     async headers() {
         return [

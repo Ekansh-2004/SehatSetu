@@ -3,20 +3,15 @@
 /**
  * DICOM Viewer Page (URL-based)
  * View DICOM files from a presigned URL
+ * Components are lazy-loaded to avoid pulling ~10MB of DICOM libs into other pages' bundles.
  */
 
 import '../medical-imaging/dicom-viewer.css';
 import { useState, useCallback, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { DicomViewer } from '@/components/dicom/DicomViewer';
-import { MeasurementToolsPanel } from '@/components/dicom/MeasurementToolsPanel';
-import { DicomMetadataPanel } from '@/components/dicom/DicomMetadataPanel';
-import { 
-  loadDicomFile, 
-  extractDicomMetadata 
-} from '@/lib/dicom/dicom-utils';
 import { DicomFile, DicomMetadata, ToolType } from '@/types/dicom';
 import { 
   Scan, 
@@ -26,6 +21,31 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+
+// Lazy-load heavy DICOM components (cornerstone, dicom-parser ~10MB combined)
+const DicomViewer = dynamic(
+  () => import('@/components/dicom/DicomViewer').then(mod => ({ default: mod.DicomViewer })),
+  { ssr: false, loading: () => <DicomLoading message="Loading DICOM viewer..." /> }
+);
+
+const MeasurementToolsPanel = dynamic(
+  () => import('@/components/dicom/MeasurementToolsPanel').then(mod => ({ default: mod.MeasurementToolsPanel })),
+  { ssr: false }
+);
+
+const DicomMetadataPanel = dynamic(
+  () => import('@/components/dicom/DicomMetadataPanel').then(mod => ({ default: mod.DicomMetadataPanel })),
+  { ssr: false }
+);
+
+function DicomLoading({ message }: { message: string }) {
+  return (
+    <div className="flex items-center justify-center p-8">
+      <Loader2 className="w-8 h-8 text-blue-400 animate-spin mr-3" />
+      <span className="text-slate-400">{message}</span>
+    </div>
+  );
+}
 
 function DicomViewContent() {
   const searchParams = useSearchParams();
@@ -55,6 +75,9 @@ function DicomViewContent() {
         setIsLoading(true);
         setError(null);
         toast.info(`Loading ${fileName}...`);
+
+        // Dynamic import of dicom-utils only when needed
+        const { loadDicomFile, extractDicomMetadata } = await import('@/lib/dicom/dicom-utils');
 
         const response = await fetch(fileUrl);
         if (!response.ok) {
@@ -268,4 +291,3 @@ export default function DicomViewPage() {
     </Suspense>
   );
 }
-

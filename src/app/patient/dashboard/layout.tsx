@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, ReactNode, useMemo } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/ui/logo";
@@ -32,13 +32,8 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { toast } from "sonner";
-
-interface PatientSession {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string | null;
-}
+import { PatientSessionProvider, usePatientSession } from "@/context/PatientSessionContext";
+import { useRouter } from "next/navigation";
 
 interface NavItem {
   title: string;
@@ -106,16 +101,14 @@ const navItems: NavItem[] = [
   },
 ];
 
-export default function PatientDashboardLayout({ children }: { children: ReactNode }) {
+function PatientDashboardLayoutInner({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [patient, setPatient] = useState<PatientSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { patient, loading, logout } = usePatientSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [instantBookingEnabled, setInstantBookingEnabled] = useState(false);
 
   useEffect(() => {
-    checkSession();
     setInstantBookingEnabled(process.env.NEXT_PUBLIC_INSTANT_BOOKING === 'true');
   }, []);
 
@@ -127,33 +120,9 @@ export default function PatientDashboardLayout({ children }: { children: ReactNo
     return navItems;
   }, [instantBookingEnabled]);
 
-  const checkSession = async () => {
-    try {
-      const response = await fetch("/api/patient/session");
-      const data = await response.json();
-
-      if (data.success && data.patient) {
-        setPatient(data.patient);
-      } else {
-        router.push("/patient/sign-in");
-      }
-    } catch (error) {
-      console.error("Error checking session:", error);
-      router.push("/patient/sign-in");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleLogout = async () => {
-    try {
-      await fetch("/api/patient/session", { method: "DELETE" });
-      toast.success("Logged out successfully");
-      router.push("/patient/sign-in");
-    } catch (error) {
-      console.error("Error logging out:", error);
-      toast.error("Failed to log out");
-    }
+    await logout();
+    toast.success("Logged out successfully");
   };
 
   if (loading) {
@@ -358,5 +327,13 @@ export default function PatientDashboardLayout({ children }: { children: ReactNo
         </main>
       </div>
     </div>
+  );
+}
+
+export default function PatientDashboardLayout({ children }: { children: ReactNode }) {
+  return (
+    <PatientSessionProvider>
+      <PatientDashboardLayoutInner>{children}</PatientDashboardLayoutInner>
+    </PatientSessionProvider>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -74,9 +74,11 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 }
 };
 
+import { usePatientSession } from "@/context/PatientSessionContext";
+
 export default function PatientAppointmentsPage() {
   const router = useRouter();
-  const [patient, setPatient] = useState<PatientSession | null>(null);
+  const { patient } = usePatientSession();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -85,36 +87,30 @@ export default function PatientAppointmentsPage() {
   const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    try {
-      // Fetch patient session first
-      const sessionRes = await fetch("/api/patient/session");
-      const sessionData = await sessionRes.json();
-      
-      if (!sessionData.success || !sessionData.patient) {
-        router.push("/patient/sign-in");
-        return;
-      }
-      
-      setPatient(sessionData.patient);
-
-      // Fetch appointments
-      const response = await fetch("/api/patient/appointments");
-      const data = await response.json();
-
-      if (data.success) {
-        setAppointments(data.data || []);
-      }
-    } catch (error) {
-      console.error("Error fetching appointments:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
-
+  // Fetch appointments when patient is available from context
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!patient) return;
+
+    let cancelled = false;
+
+    const fetchAppointments = async () => {
+      try {
+        const response = await fetch("/api/patient/appointments");
+        const data = await response.json();
+
+        if (!cancelled && data.success) {
+          setAppointments(data.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchAppointments();
+    return () => { cancelled = true; };
+  }, [patient]);
 
   const getStatusConfig = (status: string) => {
     const configs: Record<string, { color: string; icon: typeof CheckCircle2; label: string }> = {

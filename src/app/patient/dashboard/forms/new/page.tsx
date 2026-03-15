@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import InstantBookingForm from "@/components/InstantBookingForm";
+import { usePatientSession } from "@/context/PatientSessionContext";
 
 // Check if instant booking is enabled
 const INSTANT_BOOKING_ENABLED = process.env.NEXT_PUBLIC_INSTANT_BOOKING === 'true';
@@ -65,6 +66,8 @@ const steps = [
 
 export default function NewPatientFormPage() {
   const router = useRouter();
+  // Use shared session from context — no duplicate /api/patient/session call
+  const { patient: sessionPatient, loading: sessionLoading } = usePatientSession();
   const [patient, setPatient] = useState<PatientSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -90,48 +93,37 @@ export default function NewPatientFormPage() {
     consultationMode: "" as "video" | "physical" | "",
   });
 
+  // Pre-fill form when patient data is available from context
   useEffect(() => {
-    fetchPatientData();
-  }, []);
+    if (!sessionPatient || sessionLoading) return;
 
-  const fetchPatientData = async () => {
-    try {
-      const response = await fetch("/api/patient/session");
-      const data = await response.json();
+    // Set patient for compatibility with the rest of the component
+    setPatient(sessionPatient as PatientSession);
 
-      if (data.success && data.patient) {
-        setPatient(data.patient);
-        
-        // Format dateOfBirth for input field (YYYY-MM-DD)
-        let formattedDOB = "";
-        if (data.patient.dateOfBirth) {
-          const dob = new Date(data.patient.dateOfBirth);
-          formattedDOB = dob.toISOString().split('T')[0];
-        }
-
-        // Pre-fill form with patient data (autofill but keep editable)
-        setFormData(prev => ({
-          ...prev,
-          name: data.patient.name || "",
-          email: data.patient.email || "",
-          phone: data.patient.phone || "",
-          dateOfBirth: formattedDOB || "",
-          gender: data.patient.gender || "",
-          street: data.patient.street || "",
-          city: data.patient.city || "",
-          state: data.patient.state || "",
-          zipCode: data.patient.zipCode || "",
-        }));
-      } else {
-        router.push("/patient/sign-in");
-      }
-    } catch (error) {
-      console.error("Error fetching patient data:", error);
-      router.push("/patient/sign-in");
-    } finally {
-      setLoading(false);
+    // Format dateOfBirth for input field (YYYY-MM-DD)
+    let formattedDOB = "";
+    const p = sessionPatient as any;
+    if (p.dateOfBirth) {
+      const dob = new Date(p.dateOfBirth);
+      formattedDOB = dob.toISOString().split('T')[0];
     }
-  };
+
+    // Pre-fill form with patient data (autofill but keep editable)
+    setFormData(prev => ({
+      ...prev,
+      name: p.name || "",
+      email: p.email || "",
+      phone: p.phone || "",
+      dateOfBirth: formattedDOB || "",
+      gender: p.gender || "",
+      street: p.street || "",
+      city: p.city || "",
+      state: p.state || "",
+      zipCode: p.zipCode || "",
+    }));
+
+    setLoading(false);
+  }, [sessionPatient, sessionLoading]);
 
   const validateStep = (step: number): boolean => {
     switch (step) {

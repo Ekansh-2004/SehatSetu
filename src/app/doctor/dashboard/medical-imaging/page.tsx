@@ -3,20 +3,14 @@
 /**
  * Medical Imaging Page
  * Professional DICOM viewer for doctors
+ * Components are lazy-loaded to avoid pulling ~10MB of DICOM libs into other pages' bundles.
  */
 
 import './dicom-viewer.css';
 import { useState, useCallback, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { DicomUploadZone } from '@/components/dicom/DicomUploadZone';
-import { DicomViewer } from '@/components/dicom/DicomViewer';
-import { MeasurementToolsPanel } from '@/components/dicom/MeasurementToolsPanel';
-import { DicomMetadataPanel } from '@/components/dicom/DicomMetadataPanel';
-import { 
-  loadDicomFile, 
-  extractDicomMetadata 
-} from '@/lib/dicom/dicom-utils';
 import { DicomFile, DicomMetadata, ToolType } from '@/types/dicom';
 import { 
   Scan, 
@@ -25,10 +19,41 @@ import {
   Info,
   FileText,
   Grid3x3,
-  List
+  List,
+  Loader2
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+
+// Lazy-load heavy DICOM components (cornerstone, dicom-parser ~10MB combined)
+const DicomViewer = dynamic(
+  () => import('@/components/dicom/DicomViewer').then(mod => ({ default: mod.DicomViewer })),
+  { ssr: false, loading: () => <DicomLoading /> }
+);
+
+const DicomUploadZone = dynamic(
+  () => import('@/components/dicom/DicomUploadZone').then(mod => ({ default: mod.DicomUploadZone })),
+  { ssr: false }
+);
+
+const MeasurementToolsPanel = dynamic(
+  () => import('@/components/dicom/MeasurementToolsPanel').then(mod => ({ default: mod.MeasurementToolsPanel })),
+  { ssr: false }
+);
+
+const DicomMetadataPanel = dynamic(
+  () => import('@/components/dicom/DicomMetadataPanel').then(mod => ({ default: mod.DicomMetadataPanel })),
+  { ssr: false }
+);
+
+function DicomLoading() {
+  return (
+    <div className="flex items-center justify-center p-8">
+      <Loader2 className="w-8 h-8 text-blue-400 animate-spin mr-3" />
+      <span className="text-slate-400">Loading DICOM viewer...</span>
+    </div>
+  );
+}
 
 export default function MedicalImagingPage() {
   const [dicomFiles, setDicomFiles] = useState<DicomFile[]>([]);
@@ -47,6 +72,9 @@ export default function MedicalImagingPage() {
     const loadedFiles: DicomFile[] = [];
 
     try {
+      // Dynamic import of dicom-utils only when files are selected
+      const { loadDicomFile, extractDicomMetadata } = await import('@/lib/dicom/dicom-utils');
+
       for (const file of files) {
         toast.info(`Loading ${file.name}...`);
         
@@ -453,4 +481,3 @@ export default function MedicalImagingPage() {
     </div>
   );
 }
-

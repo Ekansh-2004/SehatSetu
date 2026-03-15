@@ -164,7 +164,7 @@ export default function EnhancedConsultationPage({
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [pdfGenerationMessage, setPdfGenerationMessage] = useState<string>("");
 
-  const [awsEntities, setAwsEntities] = useState<{ Text: string }[]>([]);
+  const [medicalEntities, setMedicalEntities] = useState<{ Text: string }[]>([]);
   const [muscleTerms, setMuscleTerms] = useState<string[]>([]);
   const [qdrantResults, setQdrantResults] = useState<
     { muscle_name?: string; score?: number }[]
@@ -763,7 +763,7 @@ export default function EnhancedConsultationPage({
   }, [params, appointment]);
 
 
-  // Fetch awsEntities and muscleTerms from API when messages change
+  // Fetch medical entities and muscleTerms from API when messages change
   useEffect(() => {
     if (!messages.length) return;
     const transcriptText = messages.map((m) => m.text).join(" ");
@@ -774,29 +774,29 @@ export default function EnhancedConsultationPage({
     })
       .then((res) => res.json())
       .then((data) => {
-        setAwsEntities(data.awsEntities || []);
+        setMedicalEntities(data.awsEntities || []);
         setMuscleTerms(data.muscleTerms || []);
         setQdrantResults(data.goodMatches || []); // Use goodMatches instead of qdrantResults
       });
   }, [messages]);
 
-  // Highlight text using awsEntities and muscleTerms
+  // Highlight text using medical entities and muscleTerms
   const highlightText = (
     text: string,
-    awsEntities: { Text: string }[] = [],
+    entities: { Text: string }[] = [],
     muscleTerms: string[] = []
   ) => {
     console.log("🔍 highlightText called with:", {
       text: text.substring(0, 50) + "...",
-      awsEntities: awsEntities.length,
+      entities: entities.length,
       muscleTerms,
     });
 
-    const awsTerms = awsEntities.map((e: { Text: string }) =>
+    const entityTerms = entities.map((e: { Text: string }) =>
       e.Text.toLowerCase()
     );
     const allTerms = [
-      ...new Set([...awsTerms, ...muscleTerms.map((m) => m.toLowerCase())]),
+      ...new Set([...entityTerms, ...muscleTerms.map((m) => m.toLowerCase())]),
     ];
 
     console.log("🔍 All terms to highlight:", allTerms);
@@ -2674,7 +2674,7 @@ export default function EnhancedConsultationPage({
                                       >
                                         {highlightText(
                                           message.text,
-                                          awsEntities,
+                                          medicalEntities,
                                           muscleTerms
                                         )}
                                       </p>

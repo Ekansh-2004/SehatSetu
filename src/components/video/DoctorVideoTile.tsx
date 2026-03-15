@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { forwardRef, useImperativeHandle } from "react";
+import { VideoTrackView, AudioTrackView } from "./TrackViews";
 
 interface DoctorVideoTileProps {
   appointmentId: string;
@@ -68,6 +69,8 @@ interface ParticipantInfo {
   videoTrack?: Track;
   audioTrack?: Track;
 }
+
+
 
 const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
   (
@@ -114,9 +117,6 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
     const [isAudioEnabled, setIsAudioEnabled] = useState(true);
     // removed isConnecting UI state (handled externally)
     const [isExpanded] = useState(true);
-
-    const localVideoRef = useRef<HTMLVideoElement>(null);
-    const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
 
     // Helper function to filter out agent participants
     const getVisibleParticipants = useCallback(() => {
@@ -241,7 +241,6 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
           RoomEvent.ParticipantDisconnected,
           (participant: RemoteParticipant) => {
             console.log("Participant disconnected:", participant.identity);
-            cleanupParticipantAudio(participant.sid);
             updateParticipants(newRoom);
           }
         );
@@ -269,7 +268,6 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
             }
 
             updateParticipants(newRoom);
-            attachTrack(track, participant);
           }
         );
 
@@ -286,7 +284,6 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
               participant.identity
             );
             updateParticipants(newRoom);
-            detachTrack(track);
           }
         );
 
@@ -295,9 +292,6 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
           (publication: LocalTrackPublication) => {
             console.log("Local track published:", publication.kind);
             updateParticipants(newRoom);
-            if (publication.track) {
-              attachLocalTrack(publication.track);
-            }
           }
         );
 
@@ -406,21 +400,6 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
           videoTrack: localVideoTrack,
           audioTrack: localAudioTrack,
         });
-
-        // Immediately attach local video track if available
-        if (localVideoTrack && localVideoRef.current) {
-          console.log(
-            "🎥 Doctor: Attaching local video track in updateParticipants"
-          );
-          try {
-            localVideoTrack.attach(localVideoRef.current);
-          } catch (error) {
-            console.error(
-              "🎥 Doctor: Failed to attach local video track:",
-              error
-            );
-          }
-        }
       }
 
       // Add remote participants
@@ -442,24 +421,6 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
           videoTrack: remoteVideoTrack,
           audioTrack: remoteAudioTrack,
         });
-
-        // Immediately attach remote video track if available
-        if (remoteVideoTrack) {
-          const videoElement = remoteVideoRefs.current.get(participant.sid);
-          if (videoElement) {
-            console.log(
-              `🎥 Doctor: Attaching remote video track for ${participant.identity}`
-            );
-            try {
-              remoteVideoTrack.attach(videoElement);
-            } catch (error) {
-              console.error(
-                `🎥 Doctor: Failed to attach remote video track for ${participant.identity}:`,
-                error
-              );
-            }
-          }
-        }
       });
 
       setParticipants(participantInfos);
@@ -490,113 +451,7 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
       setIsAudioEnabled(!!audioEnabled);
     }, [localParticipant]);
 
-    const attachTrack = (track: Track, participant: Participant) => {
-      console.log(
-        `🎥 Doctor: attachTrack called for ${participant.identity}, track kind: ${track.kind}`
-      );
 
-      if (track.kind === Track.Kind.Video) {
-        const isLocal = participant === room?.localParticipant;
-
-        if (isLocal && localVideoRef.current) {
-          console.log("🎥 Doctor: Attaching local video track");
-          try {
-            track.attach(localVideoRef.current);
-          } catch (error) {
-            console.error(
-              "🎥 Doctor: Failed to attach local video track:",
-              error
-            );
-          }
-        } else if (!isLocal) {
-          const videoRef = remoteVideoRefs.current.get(participant.sid);
-          if (videoRef) {
-            console.log(
-              `🎥 Doctor: Attaching remote video track for ${participant.identity}`
-            );
-            try {
-              track.attach(videoRef);
-            } catch (error) {
-              console.error(
-                `🎥 Doctor: Failed to attach remote video track for ${participant.identity}:`,
-                error
-              );
-            }
-          } else {
-            console.warn(
-              `🎥 Doctor: No video element found for participant ${participant.identity}`
-            );
-          }
-        }
-      } else if (track.kind === Track.Kind.Audio) {
-        const isLocal = participant === room?.localParticipant;
-
-        if (!isLocal) {
-          console.log(
-            `🔊 Doctor: Attaching remote audio track for ${participant.identity}`
-          );
-          try {
-            // Create or get audio element for remote participant
-            let audioElement = document.getElementById(
-              `audio-${participant.sid}`
-            ) as HTMLAudioElement;
-            if (!audioElement) {
-              audioElement = document.createElement("audio");
-              audioElement.id = `audio-${participant.sid}`;
-              audioElement.autoplay = true;
-              audioElement.setAttribute("playsinline", "true");
-              document.body.appendChild(audioElement);
-              console.log(
-                `🔊 Doctor: Created audio element for ${participant.identity}`
-              );
-            }
-            track.attach(audioElement);
-          } catch (error) {
-            console.error(
-              `🔊 Doctor: Failed to attach remote audio track for ${participant.identity}:`,
-              error
-            );
-          }
-        }
-      }
-    };
-
-    const detachTrack = (track: Track) => {
-      console.log(
-        `🎥 Doctor: detachTrack called for track kind: ${track.kind}`
-      );
-      try {
-        track.detach();
-      } catch (error) {
-        console.error(`🎥 Doctor: Failed to detach track:`, error);
-      }
-    };
-
-    // Cleanup audio elements when participant disconnects
-    const cleanupParticipantAudio = (participantSid: string) => {
-      const audioElement = document.getElementById(`audio-${participantSid}`);
-      if (audioElement) {
-        console.log(
-          `🔊 Doctor: Removing audio element for participant ${participantSid}`
-        );
-        audioElement.remove();
-      }
-    };
-
-    const attachLocalTrack = (track: LocalTrack) => {
-      console.log(
-        `🎥 Doctor: attachLocalTrack called, track kind: ${track.kind}`
-      );
-
-      if (track.kind === Track.Kind.Video && localVideoRef.current) {
-        console.log("🎥 Doctor: Attaching local track to video element");
-        try {
-          track.attach(localVideoRef.current);
-        } catch (error) {
-          console.error("🎥 Doctor: Failed to attach local track:", error);
-        }
-      }
-    };
 
     const startCall = async () => {
       const response = await initializeConnection();
@@ -604,52 +459,6 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
         await connectToRoom(response.token, response.wsUrl);
       }
     };
-
-    // removed internal endCall button handler; controlled via ref
-
-    // Ensure video tracks are properly attached when participants change
-    useEffect(() => {
-      if (!room) return;
-
-      participants.forEach((participantInfo) => {
-        const isLocal = participantInfo.participant === localParticipant;
-
-        if (participantInfo.videoTrack) {
-          if (isLocal && localVideoRef.current) {
-            // Re-attach local video if not already attached
-            const videoElement = localVideoRef.current;
-            if (!videoElement.srcObject) {
-              console.log("🎥 Doctor: Re-attaching local video track");
-              try {
-                participantInfo.videoTrack.attach(videoElement);
-              } catch (error) {
-                console.error(
-                  "🎥 Doctor: Failed to re-attach local video:",
-                  error
-                );
-              }
-            }
-          } else if (!isLocal) {
-            const videoElement = remoteVideoRefs.current.get(
-              participantInfo.participant.sid
-            );
-            if (videoElement && !videoElement.srcObject) {
-              console.log(
-                `🎥 Doctor: Re-attaching remote video for ${participantInfo.participant.identity}`
-              );
-              try {
-                participantInfo.videoTrack.attach(videoElement);
-              } catch (error) {
-                console.error(
-                  `🎥 Doctor: Failed to re-attach remote video for ${participantInfo.participant.identity}:`,
-                  error
-                );
-              }
-            }
-          }
-        }
-      });
-    }, [participants, localParticipant, room]);
 
     const toggleVideo = async () => {
       if (localParticipant) {
@@ -734,12 +543,6 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
         if (room) {
           room.disconnect();
         }
-        // Cleanup all audio elements created by this component
-        const audioElements = document.querySelectorAll('audio[id^="audio-"]');
-        audioElements.forEach((audioElement) => {
-          console.log(`🔊 Doctor: Cleaning up audio element on unmount`);
-          audioElement.remove();
-        });
       };
     }, [room]);
 
@@ -861,28 +664,8 @@ const DoctorVideoTile = forwardRef<DoctorVideoTileRef, DoctorVideoTileProps>(
                         animate={{ opacity: 1, scale: 1 }}
                         className={`relative bg-gray-900 rounded-lg overflow-hidden aspect-[4/3] ${isExpanded ? "max-h-80 md:max-h-[28rem] lg:max-h-[32rem]" : "max-h-48 md:max-h-64 lg:max-h-72"}`}
                       >
-                        <video
-                          ref={
-                            isLocal
-                              ? localVideoRef
-                              : (ref) => {
-                                  if (ref)
-                                    remoteVideoRefs.current.set(
-                                      participantInfo.participant.sid,
-                                      ref
-                                    );
-                                }
-                          }
-                          autoPlay
-                          playsInline
-                          muted={isLocal}
-                          className="w-full h-full object-contain"
-                          style={{
-                            transform: "scaleX(-1)",
-                            willChange: "transform",
-                            backfaceVisibility: "hidden",
-                          }}
-                        />
+                        <VideoTrackView track={participantInfo.videoTrack} isLocal={isLocal} />
+                        {!isLocal && <AudioTrackView track={participantInfo.audioTrack} />}
 
                         {/* Participant Info */}
                         <div className="absolute bottom-1 left-1 md:bottom-2 md:left-2 bg-black bg-opacity-50 text-white px-1 py-0.5 md:px-2 md:py-1 rounded text-xs">

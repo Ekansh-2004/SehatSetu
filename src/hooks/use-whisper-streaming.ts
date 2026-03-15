@@ -40,22 +40,7 @@ interface UseWhisperStreamingReturn {
   clearMessages: () => void;
 }
 
-type BrowserSpeechRecognition = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: (() => void) | null;
-  onresult: ((event: any) => void) | null;
-  onerror: ((event: any) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
 
-type BrowserWindowWithSpeech = Window & {
-  SpeechRecognition?: new () => BrowserSpeechRecognition;
-  webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
-};
 
 export const useWhisperStreaming = (
   options: UseWhisperStreamingOptions = {}
@@ -77,7 +62,6 @@ export const useWhisperStreaming = (
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const allAudioChunksRef = useRef<Blob[]>([]);
   const sessionActiveRef = useRef<boolean>(false);
@@ -111,14 +95,6 @@ export const useWhisperStreaming = (
       setConnectionStatus('connecting');
       allAudioChunksRef.current = [];
       sessionActiveRef.current = true;
-
-      const speechWindow = window as BrowserWindowWithSpeech;
-      const SpeechRecognitionImpl =
-        speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
-
-      if (!SpeechRecognitionImpl) {
-        throw new Error('Live transcription is not supported in this browser. Please use Chrome or Edge.');
-      }
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -161,65 +137,9 @@ export const useWhisperStreaming = (
         onError?.('Recording error occurred');
       };
 
-      const recognition = new SpeechRecognitionImpl();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
 
-      recognition.onstart = () => {
-        console.log('🗣️ Web Speech recognition started');
-        setConnectionStatus('connected');
-      };
-
-      recognition.onresult = (event: any) => {
-        if (!sessionActiveRef.current) return;
-
-        let interimTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i];
-          const text = (result[0]?.transcript || '').trim();
-          if (!text) continue;
-
-          if (result.isFinal) {
-            addMessage(text, false);
-            onUtteranceEnd?.(text);
-            setInterimText('');
-            setSpeechDetected(false);
-          } else {
-            interimTranscript += `${text} `;
-          }
-        }
-
-        if (interimTranscript.trim()) {
-          setSpeechDetected(true);
-          onSpeechStarted?.();
-          addMessage(interimTranscript.trim(), true);
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        const errorMessage = `Speech recognition error: ${event?.error || 'unknown'}`;
-        console.error('❌', errorMessage);
-        setError(errorMessage);
-        setConnectionStatus('error');
-        onError?.(errorMessage);
-      };
-
-      recognition.onend = () => {
-        // Keep recognition alive while session is active. Some browsers auto-stop.
-        if (sessionActiveRef.current) {
-          try {
-            recognition.start();
-          } catch {
-            // Ignore restart race errors.
-          }
-        }
-      };
-
-      recognitionRef.current = recognition;
 
       mediaRecorder.start(chunkDurationMs);
-      recognition.start();
 
     } catch (err) {
       console.error('❌ Failed to start recording:', err);
@@ -250,15 +170,6 @@ export const useWhisperStreaming = (
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
-    }
-
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        // ignore
-      }
-      recognitionRef.current = null;
     }
 
     setIsConnected(false);
